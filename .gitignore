@@ -1,0 +1,52 @@
+# Virtual environments
+.venv/
+.venv_citylearn/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# CityLearn local checkout
+external/CityLearn/
+
+# Training logs
+d3rlpy_logs/
+logs/
+
+# Cache/temp files
+.cache/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large downloaded benchmark data
+d3rlpy_data/
+
+# Exploratory CityLearn seed-0 models
+results/citylearn_bc_seed_0.d3
+results/citylearn_iql_seed_0.d3
+results/citylearn_cql_seed_0.d3
+
+# Intermediate / superseded CityLearn outputs
+results/citylearn_3seed_comparison.png
+results/citylearn_3seed_comparison_polished.png
+results/citylearn_3seed_summary.csv
+results/citylearn_controlled_3seed_comparison.png
+results/citylearn_controlled_3seed_summary.csv
+results/citylearn_eval_scores.csv
+results/citylearn_carbon_emission_comparison.png
+results/citylearn_electricity_cost_comparison.png
+results/citylearn_net_electricity_consumption_comparison.png
+results/citylearn_net_electricity_timeseries_comparison.png
+results/citylearn_peak_net_electricity_comparison.png
+data/citylearn_logged.npz
