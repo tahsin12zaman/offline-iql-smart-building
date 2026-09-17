@@ -220,6 +220,189 @@ deployment or directly command a building-management system.
 """
     )
 
+    st.markdown("### Objective → Deliverable → Acceptance → Verification → Evidence")
+
+    st.write(
+        "The project objectives are translated into concrete engineering "
+        "deliverables with explicit acceptance criteria, verification methods, "
+        "and preserved evidence. Acceptance here refers only to the documented "
+        "CityLearn simulation/application scope."
+    )
+
+    objective_matrix = pd.DataFrame(
+        [
+            {
+                "ID": "O1",
+                "Objective": (
+                    "Develop offline smart-building controllers from previously "
+                    "logged control data."
+                ),
+                "Deliverable": (
+                    "Saved BC, IQL, and CQL controller artifacts trained without "
+                    "online environment interaction."
+                ),
+                "Acceptance criterion": (
+                    "BC, IQL, and CQL saved policies are available for controlled "
+                    "seeds 1–3 and can be loaded for evaluation."
+                ),
+                "Verification": (
+                    "Artifact-presence checks plus live saved-controller execution."
+                ),
+                "Evidence": (
+                    "results/citylearn_{bc,iql,cql}_seed_{1,2,3}.d3; "
+                    "Live Controller; experiment manifest"
+                ),
+            },
+            {
+                "ID": "O2",
+                "Objective": (
+                    "Provide a common engineering evaluation of learned and "
+                    "conventional control."
+                ),
+                "Deliverable": (
+                    "Controller comparison workflow covering BC, IQL, CQL, "
+                    "and CityLearn BasicRBC."
+                ),
+                "Acceptance criterion": (
+                    "Controllers are evaluated over the documented 719-step "
+                    "CityLearn scenario using common operational metric definitions."
+                ),
+                "Verification": (
+                    "Application-metric consistency checks and Controller Comparison."
+                ),
+                "Evidence": (
+                    "results/citylearn_application_metrics.csv; "
+                    "Controller Comparison"
+                ),
+            },
+            {
+                "ID": "O3",
+                "Objective": (
+                    "Evaluate controller performance using operational outcomes "
+                    "rather than cumulative RL reward alone."
+                ),
+                "Deliverable": (
+                    "Energy, cost, carbon, peak-demand, thermal-comfort, and "
+                    "native CityLearn KPI evaluation."
+                ),
+                "Acceptance criterion": (
+                    "The application exposes district/building evidence across "
+                    "resource and comfort dimensions."
+                ),
+                "Verification": (
+                    "Evidence-schema/coverage tests and user-facing KPI inspection."
+                ),
+                "Evidence": (
+                    "application metrics; comfort summary; native KPI summary; "
+                    "Thermal Comfort; Native CityLearn KPIs"
+                ),
+            },
+            {
+                "ID": "O4",
+                "Objective": (
+                    "Identify operational failure cases and evaluate an explicit "
+                    "engineering response."
+                ),
+                "Deliverable": (
+                    "Building-level failure analysis and supervisory comfort "
+                    "guardrail case study for IQL Seed 1."
+                ),
+                "Acceptance criterion": (
+                    "The application identifies the IQL Building 1 comfort failure, "
+                    "quantifies normal-versus-guarded outcomes, and preserves every "
+                    "reported guardrail intervention."
+                ),
+                "Verification": (
+                    "Guardrail evidence regression tests and event-count consistency."
+                ),
+                "Evidence": (
+                    "results/citylearn_guarded_v2_summary.csv; "
+                    "results/citylearn_guarded_v2_events.csv; Comfort Guardrail"
+                ),
+            },
+            {
+                "ID": "O5",
+                "Objective": (
+                    "Provide a practically demonstrable operator-facing workflow "
+                    "for controller screening and engineering decision support."
+                ),
+                "Deliverable": (
+                    "Streamlit application with live evaluation, editable acceptance "
+                    "limits, PASS/WARN/FAIL screening, and a guided Defense Demo."
+                ),
+                "Acceptance criterion": (
+                    "A user can execute a saved controller, inspect multi-KPI "
+                    "evidence, detect a failure, review mitigation, screen against "
+                    "scenario limits, and generate verification evidence."
+                ),
+                "Verification": (
+                    "Application acceptance tests plus guided end-to-end demonstration."
+                ),
+                "Evidence": (
+                    "Live Controller; Operator Decision Support; Engineering Scenario; "
+                    "Defense Demo; controller verification record"
+                ),
+            },
+            {
+                "ID": "O6",
+                "Objective": (
+                    "Preserve reproducible and traceable engineering evidence."
+                ),
+                "Deliverable": (
+                    "Experiment manifest, evidence identity, automated verification "
+                    "tests, evaluation report, and controller verification record."
+                ),
+                "Acceptance criterion": (
+                    "Controller/evidence artifacts have traceable identities, "
+                    "controlled seeds and experiment scope are recorded, and "
+                    "verification outputs can be regenerated."
+                ),
+                "Verification": (
+                    "Manifest SHA-256 consistency checks, syntax checks, and "
+                    "application/guardrail/live-evaluation tests."
+                ),
+                "Evidence": (
+                    "results/experiment_manifest.json; automated tests; "
+                    "Controller Evaluation Report; Controller Verification Record"
+                ),
+            },
+        ]
+    )
+
+    st.dataframe(
+        objective_matrix,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "ID": st.column_config.TextColumn("ID", width="small"),
+            "Objective": st.column_config.TextColumn("Objective", width="medium"),
+            "Deliverable": st.column_config.TextColumn("Deliverable", width="large"),
+            "Acceptance criterion": st.column_config.TextColumn(
+                "Acceptance criterion",
+                width="large",
+            ),
+            "Verification": st.column_config.TextColumn(
+                "Verification",
+                width="medium",
+            ),
+            "Evidence": st.column_config.TextColumn("Evidence", width="large"),
+        },
+    )
+
+    st.success(
+        "Practical demonstration criterion: the application provides a complete "
+        "operator-facing path from saved offline controller execution to measured "
+        "multi-KPI evidence, failure detection, supervisory mitigation, acceptance "
+        "screening, and preserved verification evidence."
+    )
+
+    st.caption(
+        "Validation boundary: completion of these objectives demonstrates the "
+        "documented CityLearn engineering prototype and its verification evidence. "
+        "It does not constitute physical-building deployment, BMS commissioning, "
+        "or controller safety certification."
+    )
+
     st.markdown("### Engineering controller hierarchy")
 
     st.write(

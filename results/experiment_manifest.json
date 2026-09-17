@@ -157,8 +157,8 @@
     "test_files": [
       {
         "path": "tests/test_application_acceptance.py",
-        "size_bytes": 11755,
-        "sha256": "1e127a84d5c0f05bf144d1065aa6a21888eaca42c1b7bf16338b20fd57b07627"
+        "size_bytes": 12607,
+        "sha256": "920530049877a8679da3a050831d4dcdcfbde632dc7f2e9ccb3f29e29c77e906"
       },
       {
         "path": "tests/test_guardrail_evidence.py",

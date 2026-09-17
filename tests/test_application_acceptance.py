@@ -354,3 +354,30 @@ def test_application_exposes_defense_demo():
 
     for marker in required_markers:
         assert marker in source, f"Missing Defense Demo marker: {marker}"
+
+def test_application_exposes_objective_deliverable_acceptance_matrix():
+    source = APP.read_text(encoding="utf-8")
+
+    required_markers = (
+        'st.markdown("### Objective → Deliverable → Acceptance → Verification → Evidence")',
+        "objective_matrix = pd.DataFrame(",
+        '"ID": "O1"',
+        '"ID": "O2"',
+        '"ID": "O3"',
+        '"ID": "O4"',
+        '"ID": "O5"',
+        '"ID": "O6"',
+        '"Objective"',
+        '"Deliverable"',
+        '"Acceptance criterion"',
+        '"Verification"',
+        '"Evidence"',
+        "Practical demonstration criterion:",
+        "documented CityLearn engineering prototype",
+        "physical-building deployment",
+    )
+
+    for marker in required_markers:
+        assert marker in source, (
+            f"Missing objective-deliverable acceptance marker: {marker}"
+        )
