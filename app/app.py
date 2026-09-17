@@ -133,6 +133,7 @@ tabs = st.tabs(
         "Comfort Guardrail",
         "Operator Decision Support",
         "Engineering Scenario",
+        "Defense Demo",
     ]
 )
 
@@ -2935,4 +2936,323 @@ with tabs[7]:
         "engineering evaluation in CityLearn. It does not establish physical "
         "building safety, certify a controller for deployment, or replace BMS "
         "integration, commissioning, operator override, and field validation."
+    )
+# =====================================================================
+# TAB 9 — DEFENSE DEMO
+# =====================================================================
+
+with tabs[8]:
+    st.subheader("Defense Demo — Engineering Evaluation Workflow")
+
+    st.write(
+        "This guided view demonstrates the complete engineering workflow using "
+        "the preserved IQL Seed 1 case study: define the control problem, inspect "
+        "a candidate controller, detect an operational failure, evaluate a "
+        "supervisory mitigation, and preserve reproducible verification evidence."
+    )
+
+    st.info(
+        "Intended user: building energy manager, facilities engineer, or controls "
+        "engineer evaluating candidate controllers before physical deployment."
+    )
+
+    # -------------------------------------------------------------
+    # 1. Engineering problem
+    # -------------------------------------------------------------
+    st.markdown("### 1. Engineering problem and system")
+
+    d1, d2, d3, d4, d5 = st.columns(5)
+    d1.metric("Buildings", "3")
+    d2.metric("Observations", "52")
+    d3.metric("Actions", "9")
+    d4.metric("Offline transitions", "21,570")
+    d5.metric("Evaluation horizon", "719 steps")
+
+    st.write(
+        "BC, IQL, and CQL policies are trained from previously logged building "
+        "control data. Saved policies are then executed in fresh CityLearn "
+        "rollouts without online policy improvement and compared using engineering "
+        "outcomes rather than cumulative RL reward alone."
+    )
+
+    # -------------------------------------------------------------
+    # 2. Candidate controller
+    # -------------------------------------------------------------
+    st.markdown("### 2. Candidate controller — IQL Seed 1")
+
+    demo_iql = None
+
+    if application is not None:
+        demo_iql_rows = application[
+            (application["algorithm"].astype(str).str.upper() == "IQL")
+            & (application["seed"] == 1)
+        ]
+
+        if not demo_iql_rows.empty:
+            demo_iql = demo_iql_rows.iloc[0]
+
+    if demo_iql is not None:
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "Net electricity",
+            f"{float(demo_iql['net_electricity_consumption']):,.2f}",
+        )
+        c2.metric(
+            "Electricity cost",
+            f"{float(demo_iql['electricity_cost']):,.2f}",
+        )
+        c3.metric(
+            "Carbon emissions",
+            f"{float(demo_iql['carbon_emission']):,.2f}",
+        )
+        c4.metric(
+            "Peak electricity",
+            f"{float(demo_iql['peak_net_electricity']):,.3f}",
+        )
+    else:
+        st.warning("IQL Seed 1 application evidence is unavailable.")
+
+    # -------------------------------------------------------------
+    # 3. Failure detection
+    # -------------------------------------------------------------
+    st.markdown("### 3. Engineering failure detection")
+
+    demo_iql_b1_comfort = None
+
+    if comfort is not None:
+        demo_comfort_rows = comfort[
+            (comfort["algorithm"].astype(str).str.upper() == "IQL")
+            & (comfort["name"] == "Building_1")
+            & (comfort["cost_function"] == "discomfort_proportion")
+        ]
+
+        if not demo_comfort_rows.empty:
+            demo_iql_b1_comfort = float(
+                demo_comfort_rows.iloc[0]["mean"]
+            )
+
+    if demo_iql_b1_comfort is not None:
+        st.error(
+            "Building-level verification exposes a failure hidden by aggregate "
+            f"resource metrics: IQL Building 1 mean discomfort is "
+            f"{100.0 * demo_iql_b1_comfort:.2f}% across the controlled seed "
+            "evaluation."
+        )
+    else:
+        st.warning("Building-level IQL comfort evidence is unavailable.")
+
+    st.write(
+        "Engineering interpretation: a controller cannot be assessed using "
+        "energy, cost, carbon, peak demand, or RL reward in isolation. "
+        "Building-level operational constraints must also be checked."
+    )
+
+    # -------------------------------------------------------------
+    # 4. Supervisory mitigation and trade-off
+    # -------------------------------------------------------------
+    st.markdown("### 4. Supervisory mitigation and measured trade-off")
+
+    demo_guardrail_ready = False
+
+    if guarded is not None and "mode" in guarded.columns:
+        demo_normal_rows = guarded[
+            guarded["mode"].astype(str).str.upper() == "NORMAL_IQL"
+        ]
+        demo_guarded_rows = guarded[
+            guarded["mode"].astype(str).str.upper() == "GUARDED_IQL"
+        ]
+
+        if not demo_normal_rows.empty and not demo_guarded_rows.empty:
+            demo_guardrail_ready = True
+            demo_normal = demo_normal_rows.iloc[0]
+            demo_guarded = demo_guarded_rows.iloc[0]
+
+            demo_before = 100.0 * float(
+                demo_normal["worst_building_overheating_discomfort"]
+            )
+            demo_after = 100.0 * float(
+                demo_guarded["worst_building_overheating_discomfort"]
+            )
+            demo_reduction = (
+                (demo_before - demo_after) / demo_before * 100.0
+            )
+            demo_interventions = int(
+                float(demo_guarded["guardrail_activations"])
+            )
+
+            g1, g2, g3 = st.columns(3)
+            g1.metric(
+                "Worst discomfort — normal",
+                f"{demo_before:.2f}%",
+            )
+            g2.metric(
+                "Worst discomfort — guarded",
+                f"{demo_after:.2f}%",
+                delta=f"{demo_after - demo_before:+.2f} percentage points",
+            )
+            g3.metric(
+                "Guardrail interventions",
+                str(demo_interventions),
+            )
+
+            demo_tradeoff = pd.DataFrame(
+                [
+                    {
+                        "Measure": "Net electricity",
+                        "Normal IQL": float(
+                            demo_normal["net_electricity_consumption"]
+                        ),
+                        "Guarded IQL": float(
+                            demo_guarded["net_electricity_consumption"]
+                        ),
+                    },
+                    {
+                        "Measure": "Electricity cost",
+                        "Normal IQL": float(
+                            demo_normal["electricity_cost"]
+                        ),
+                        "Guarded IQL": float(
+                            demo_guarded["electricity_cost"]
+                        ),
+                    },
+                    {
+                        "Measure": "Carbon emissions",
+                        "Normal IQL": float(
+                            demo_normal["carbon_emission"]
+                        ),
+                        "Guarded IQL": float(
+                            demo_guarded["carbon_emission"]
+                        ),
+                    },
+                    {
+                        "Measure": "Peak electricity",
+                        "Normal IQL": float(
+                            demo_normal["peak_net_electricity"]
+                        ),
+                        "Guarded IQL": float(
+                            demo_guarded["peak_net_electricity"]
+                        ),
+                    },
+                ]
+            )
+
+            demo_tradeoff["Change (%)"] = (
+                (
+                    demo_tradeoff["Guarded IQL"]
+                    - demo_tradeoff["Normal IQL"]
+                )
+                / demo_tradeoff["Normal IQL"]
+                * 100.0
+            )
+
+            st.dataframe(
+                demo_tradeoff.round(3),
+                width="stretch",
+                hide_index=True,
+            )
+
+            st.info(
+                f"The supervisory guardrail reduces worst-building overheating "
+                f"discomfort by {demo_reduction:.1f}% relative to normal IQL. "
+                "This improvement is accompanied by increased resource use, "
+                "making the comfort-versus-resource trade-off explicit."
+            )
+
+    if not demo_guardrail_ready:
+        st.warning("Preserved normal-versus-guarded IQL evidence is unavailable.")
+
+    # -------------------------------------------------------------
+    # 5. Engineering decision
+    # -------------------------------------------------------------
+    st.markdown("### 5. Engineering decision and acceptance")
+
+    st.write(
+        "The application does not select a controller from one performance "
+        "metric. The Operator Decision Support workflow applies editable "
+        "scenario-specific limits to energy, cost, carbon, peak demand, and "
+        "worst-building discomfort."
+    )
+
+    st.code(
+        """Measured controller evidence
+        |
+        v
+Operator-defined engineering limits
+        |
+        v
+PASS / WARN / FAIL / NOT EVALUATED
+        |
+        v
+Conservative overall screening
+        |
+        v
+Controller verification record""",
+        language="text",
+    )
+
+    st.caption(
+        "Any FAIL produces an overall FAIL; otherwise WARN is retained if "
+        "present. BasicRBC comfort remains NOT EVALUATED because equivalent "
+        "comfort evidence is unavailable."
+    )
+
+    # -------------------------------------------------------------
+    # 6. Verification evidence
+    # -------------------------------------------------------------
+    st.markdown("### 6. Verification and reproducibility")
+
+    manifest_controller_count = "Unavailable"
+    manifest_controlled_count = "Unavailable"
+    manifest_evidence_count = "Unavailable"
+
+    if experiment_manifest is not None:
+        manifest_controller_count = str(
+            experiment_manifest["controller_artifacts"][
+                "available_saved_controller_count"
+            ]
+        )
+        manifest_controlled_count = str(
+            experiment_manifest["controller_artifacts"][
+                "controlled_evaluation_artifact_count"
+            ]
+        )
+        manifest_evidence_count = str(
+            len(experiment_manifest["preserved_evidence"])
+        )
+
+    v1, v2, v3, v4 = st.columns(4)
+    v1.metric("Saved controllers", manifest_controller_count)
+    v2.metric("Controlled artifacts", manifest_controlled_count)
+    v3.metric("Hashed evidence files", manifest_evidence_count)
+    v4.metric("Repository revision", evidence_identity["revision"])
+
+    if (
+        guard_events is not None
+        and demo_guardrail_ready
+        and len(guard_events) == demo_interventions
+    ):
+        st.success(
+            f"Verification check: all {demo_interventions} reported guardrail "
+            "interventions have corresponding preserved event records."
+        )
+
+    st.write(
+        "The experiment manifest preserves SHA-256 identities for controller "
+        "artifacts, engineering evidence, and verification tests. The application "
+        "also provides downloadable evaluation and verification records."
+    )
+
+    st.warning(
+        "Validation boundary: this demonstration establishes reproducible "
+        "simulation-based engineering evaluation in CityLearn. It does not "
+        "establish physical-building safety, certify a controller for deployment, "
+        "or replace BMS integration, commissioning, operator override, and field "
+        "validation."
+    )
+
+    st.success(
+        "Demonstrated engineering workflow: logged data → offline controller → "
+        "fresh evaluation → multi-KPI assessment → failure detection → supervisory "
+        "mitigation → acceptance screening → preserved verification evidence."
     )

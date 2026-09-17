@@ -330,3 +330,27 @@ def test_application_exposes_experiment_manifest():
         assert marker in source, (
             f"Missing experiment-manifest application marker: {marker}"
         )
+
+def test_application_exposes_defense_demo():
+    source = APP.read_text(encoding="utf-8")
+
+    required_markers = (
+        '"Defense Demo"',
+        "with tabs[8]:",
+        'st.subheader("Defense Demo — Engineering Evaluation Workflow")',
+        'st.markdown("### 1. Engineering problem and system")',
+        'st.markdown("### 2. Candidate controller — IQL Seed 1")',
+        'st.markdown("### 3. Engineering failure detection")',
+        'st.markdown("### 4. Supervisory mitigation and measured trade-off")',
+        'st.markdown("### 5. Engineering decision and acceptance")',
+        'st.markdown("### 6. Verification and reproducibility")',
+        "demo_iql_b1_comfort",
+        "demo_guardrail_ready",
+        "demo_interventions",
+        'experiment_manifest["controller_artifacts"]',
+        "preserved event records",
+        "Validation boundary:",
+    )
+
+    for marker in required_markers:
+        assert marker in source, f"Missing Defense Demo marker: {marker}"
