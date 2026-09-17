@@ -2532,6 +2532,221 @@ with tabs[7]:
         "instead of presenting the controller as universally suitable."
     )
 
+    # -------------------------------------------------------------
+    # Quantitative engineering case-study evidence
+    # -------------------------------------------------------------
+    st.markdown("### Case-study engineering evidence")
+
+    iql_seed1 = None
+    if application is not None:
+        iql_rows = application[
+            (application["algorithm"].astype(str).str.upper() == "IQL")
+            & (application["seed"] == 1)
+        ]
+        if not iql_rows.empty:
+            iql_seed1 = iql_rows.iloc[0]
+
+    iql_b1_comfort = None
+    if comfort is not None:
+        comfort_rows = comfort[
+            (comfort["algorithm"].astype(str).str.upper() == "IQL")
+            & (comfort["name"] == "Building_1")
+            & (comfort["cost_function"] == "discomfort_proportion")
+        ]
+        if not comfort_rows.empty:
+            iql_b1_comfort = float(comfort_rows.iloc[0]["mean"])
+
+    if iql_seed1 is not None:
+        st.markdown("#### Candidate controller — IQL Seed 1")
+
+        q1, q2, q3, q4 = st.columns(4)
+
+        q1.metric(
+            "Net electricity",
+            f"{float(iql_seed1['net_electricity_consumption']):,.2f}",
+        )
+        q2.metric(
+            "Electricity cost",
+            f"{float(iql_seed1['electricity_cost']):,.2f}",
+        )
+        q3.metric(
+            "Carbon emissions",
+            f"{float(iql_seed1['carbon_emission']):,.2f}",
+        )
+        q4.metric(
+            "Peak electricity",
+            f"{float(iql_seed1['peak_net_electricity']):,.3f}",
+        )
+
+        if iql_b1_comfort is not None:
+            st.error(
+                "Detected engineering failure: across the controlled three-seed "
+                f"IQL evaluation, Building 1 mean discomfort is "
+                f"{100.0 * iql_b1_comfort:.2f}%. This demonstrates why aggregate "
+                "resource metrics alone are insufficient for controller selection."
+            )
+
+    if guarded is not None:
+        normal_rows = guarded[
+            guarded["mode"].astype(str).str.upper() == "NORMAL_IQL"
+        ]
+        guarded_rows = guarded[
+            guarded["mode"].astype(str).str.upper() == "GUARDED_IQL"
+        ]
+
+        if not normal_rows.empty and not guarded_rows.empty:
+            normal = normal_rows.iloc[0]
+            mitigated = guarded_rows.iloc[0]
+
+            st.markdown("#### Supervisory mitigation — normal vs guarded IQL")
+
+            comparison = pd.DataFrame(
+                [
+                    {
+                        "Measure": "Net electricity",
+                        "Normal IQL": float(normal["net_electricity_consumption"]),
+                        "Guarded IQL": float(mitigated["net_electricity_consumption"]),
+                    },
+                    {
+                        "Measure": "Electricity cost",
+                        "Normal IQL": float(normal["electricity_cost"]),
+                        "Guarded IQL": float(mitigated["electricity_cost"]),
+                    },
+                    {
+                        "Measure": "Carbon emissions",
+                        "Normal IQL": float(normal["carbon_emission"]),
+                        "Guarded IQL": float(mitigated["carbon_emission"]),
+                    },
+                    {
+                        "Measure": "Peak electricity",
+                        "Normal IQL": float(normal["peak_net_electricity"]),
+                        "Guarded IQL": float(mitigated["peak_net_electricity"]),
+                    },
+                    {
+                        "Measure": "Worst-building overheating discomfort (%)",
+                        "Normal IQL": 100.0 * float(
+                            normal["worst_building_overheating_discomfort"]
+                        ),
+                        "Guarded IQL": 100.0 * float(
+                            mitigated["worst_building_overheating_discomfort"]
+                        ),
+                    },
+                ]
+            )
+
+            comparison["Change (%)"] = (
+                (
+                    comparison["Guarded IQL"]
+                    - comparison["Normal IQL"]
+                )
+                / comparison["Normal IQL"]
+                * 100.0
+            )
+
+            st.dataframe(
+                comparison.round(3),
+                width="stretch",
+                hide_index=True,
+            )
+
+            normal_discomfort = float(
+                normal["worst_building_overheating_discomfort"]
+            )
+            guarded_discomfort = float(
+                mitigated["worst_building_overheating_discomfort"]
+            )
+
+            comfort_reduction = (
+                (normal_discomfort - guarded_discomfort)
+                / normal_discomfort
+                * 100.0
+            )
+
+            energy_change = (
+                (
+                    float(mitigated["net_electricity_consumption"])
+                    - float(normal["net_electricity_consumption"])
+                )
+                / float(normal["net_electricity_consumption"])
+                * 100.0
+            )
+
+            cost_change = (
+                (
+                    float(mitigated["electricity_cost"])
+                    - float(normal["electricity_cost"])
+                )
+                / float(normal["electricity_cost"])
+                * 100.0
+            )
+
+            carbon_change = (
+                (
+                    float(mitigated["carbon_emission"])
+                    - float(normal["carbon_emission"])
+                )
+                / float(normal["carbon_emission"])
+                * 100.0
+            )
+
+            peak_change = (
+                (
+                    float(mitigated["peak_net_electricity"])
+                    - float(normal["peak_net_electricity"])
+                )
+                / float(normal["peak_net_electricity"])
+                * 100.0
+            )
+
+            intervention_count = int(
+                float(mitigated["guardrail_activations"])
+            )
+
+            r1, r2, r3 = st.columns(3)
+
+            r1.metric(
+                "Worst-building discomfort",
+                f"{100.0 * guarded_discomfort:.2f}%",
+                delta=(
+                    f"{-100.0 * (normal_discomfort - guarded_discomfort):.2f} "
+                    "percentage points"
+                ),
+            )
+
+            r2.metric(
+                "Relative discomfort reduction",
+                f"{comfort_reduction:.1f}%",
+            )
+
+            r3.metric(
+                "Guardrail interventions",
+                f"{intervention_count}",
+            )
+
+            st.info(
+                "Engineering trade-off: the supervisory guardrail reduces "
+                f"worst-building overheating discomfort by {comfort_reduction:.1f}% "
+                f"relative to normal IQL, while net electricity increases by "
+                f"{energy_change:.1f}%, cost by {cost_change:.1f}%, carbon by "
+                f"{carbon_change:.1f}%, and peak electricity by {peak_change:.1f}%. "
+                "The result therefore demonstrates an explicit comfort-versus-resource "
+                "trade-off rather than a universally superior controller."
+            )
+
+            if guard_events is not None:
+                if len(guard_events) == intervention_count:
+                    st.success(
+                        f"Verification check: all {intervention_count} reported "
+                        "guardrail interventions have corresponding preserved "
+                        "event records."
+                    )
+                else:
+                    st.warning(
+                        "Verification check: the reported guardrail activation "
+                        f"count ({intervention_count}) does not match the preserved "
+                        f"event-record count ({len(guard_events)})."
+                    )
+
     if guarded is not None:
         st.markdown("### Preserved guardrail evidence")
 
