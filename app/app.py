@@ -1613,6 +1613,402 @@ with tabs[6]:
             "limits or authorization for physical-building deployment.",
         ]
 
+        # -------------------------------------------------------------
+        # Consolidated controller evaluation report
+        # -------------------------------------------------------------
+        st.markdown("### Controller evaluation report")
+
+        st.write(
+            "Generate a consolidated engineering evidence package containing "
+            "the evaluated controller results, operator-defined acceptance "
+            "criteria, screening outcomes, reproducibility information, and "
+            "validation limitations."
+        )
+
+        evaluation_report_lines = list(report_lines)
+
+        evaluation_report_lines += [
+            "",
+            "=" * 72,
+            "CONTROLLER EVALUATION REPORT",
+            "=" * 72,
+            "",
+            "1. PURPOSE",
+            (
+                "Engineering decision-support report for comparing offline "
+                "smart-building controllers under a common CityLearn "
+                "evaluation configuration."
+            ),
+            (
+                "The report combines measured controller performance with "
+                "operator-defined engineering acceptance screening."
+            ),
+            "",
+            "2. EXPERIMENTAL CONFIGURATION",
+            "Environment: CityLearn",
+            "Buildings: 3",
+            "Observation dimension: 52",
+            "Continuous action dimension: 9",
+            "Evaluation horizon: 719 control steps",
+            "Offline dataset: 21,570 logged transitions",
+            "Learned controllers: BC, IQL, CQL",
+            "Controlled training seeds: 1, 2, 3",
+            "Conventional reference controller: CityLearn BasicRBC",
+            "",
+            "3. MEASURED CONTROLLER RESULTS",
+        ]
+
+        for _, row in acceptance.iterrows():
+            controller_name = str(row["Controller"])
+            discomfort = row["Worst building discomfort (%)"]
+
+            if pd.isna(discomfort):
+                discomfort_text = "NOT EVALUATED"
+            else:
+                discomfort_text = f"{float(discomfort):.2f}%"
+
+            evaluation_report_lines += [
+                f"Controller: {controller_name}",
+                (
+                    "  Net electricity: "
+                    f"{float(row['net_electricity_consumption']):.3f}"
+                ),
+                (
+                    "  Electricity cost: "
+                    f"{float(row['electricity_cost']):.3f}"
+                ),
+                (
+                    "  Carbon emissions: "
+                    f"{float(row['carbon_emission']):.3f}"
+                ),
+                (
+                    "  Peak building electricity: "
+                    f"{float(row['peak_net_electricity']):.3f}"
+                ),
+                f"  Worst-building discomfort: {discomfort_text}",
+                (
+                    "  Screening: "
+                    f"Energy={row['Energy']}, "
+                    f"Cost={row['Cost']}, "
+                    f"Carbon={row['Carbon']}, "
+                    f"Peak={row['Peak']}, "
+                    f"Comfort={row['Comfort']}, "
+                    f"Overall={row['Overall screening']}"
+                ),
+                "",
+            ]
+
+        evaluation_report_lines += [
+            "4. OPERATOR-DEFINED ENGINEERING REQUIREMENTS",
+            f"Maximum net electricity: {energy_limit:.3f}",
+            f"Maximum electricity cost: {cost_limit:.3f}",
+            f"Maximum carbon emissions: {carbon_limit:.3f}",
+            f"Maximum peak building electricity: {peak_limit:.3f}",
+            (
+                "Maximum worst-building discomfort: "
+                f"{comfort_limit:.2f}%"
+            ),
+            f"Warning band above limits: {warning_band:.1f}%",
+            "",
+            "5. SCREENING LOGIC",
+            (
+                "PASS: measured value is at or below the selected "
+                "operator-defined limit."
+            ),
+            (
+                "WARN: measured value exceeds the selected limit but remains "
+                "within the selected warning band."
+            ),
+            (
+                "FAIL: measured value exceeds the selected warning band."
+            ),
+            (
+                "NOT EVALUATED: equivalent measured evidence is unavailable."
+            ),
+            (
+                "Overall screening is conservative: any FAIL produces FAIL; "
+                "otherwise any WARN produces WARN; otherwise evaluated "
+                "criteria must all PASS."
+            ),
+            "",
+            "6. REPRODUCIBILITY EVIDENCE",
+            "Logged CityLearn transitions: 21,570",
+            "Offline policy-development algorithms: BC, IQL, CQL",
+            "Controlled seeds: 1, 2, 3",
+            "Saved learned-controller artifacts: .d3 policy models",
+            "Evaluation environment: CityLearn",
+            "Fixed centralized evaluation horizon: 719 control steps",
+            (
+                "Application metrics: "
+                "results/citylearn_application_metrics.csv"
+            ),
+            (
+                "Comfort evidence: "
+                "results/citylearn_comfort_summary.csv"
+            ),
+            (
+                "Native CityLearn KPI evidence: "
+                "results/citylearn_native_district_kpi_summary.csv"
+            ),
+            "",
+            "7. ENGINEERING INTERPRETATION",
+            (
+                "A controller that performs strongly on aggregate energy, "
+                "cost, or carbon metrics may still fail an operational "
+                "requirement such as building-level thermal comfort."
+            ),
+            (
+                "The acceptance screen therefore treats controller selection "
+                "as a multi-criterion engineering decision rather than an "
+                "optimization of a single aggregate metric."
+            ),
+            "",
+            "8. VALIDATION BOUNDARY",
+            (
+                "Results in this report are simulation-based engineering "
+                "evidence obtained from the specified CityLearn experiment."
+            ),
+            (
+                "Acceptance limits are operator-defined scenario requirements "
+                "and are not universal building-safety thresholds."
+            ),
+            (
+                "PASS does not constitute authorization for physical-building "
+                "deployment."
+            ),
+            (
+                "Physical deployment would require BMS integration, sensor "
+                "and actuator validation, explicit fail-safe behavior, "
+                "operator override, communication validation, and staged "
+                "commissioning."
+            ),
+            "",
+            "9. TRACEABILITY",
+            (
+                "Controller evaluation -> measured engineering metrics -> "
+                "operator-defined requirements -> PASS/WARN/FAIL screening -> "
+                "decision-support evidence."
+            ),
+            "",
+            "END OF CONTROLLER EVALUATION REPORT",
+        ]
+
+        evaluation_report_text = "\n".join(
+            str(line) for line in evaluation_report_lines
+        )
+
+        st.code(
+            "\n".join(
+                [
+                    "Engineering evidence package ready",
+                    f"Controllers evaluated: {len(acceptance)}",
+                    "Environment: CityLearn",
+                    "Evaluation horizon: 719 control steps",
+                    (
+                        "Contents: configuration + measured results + "
+                        "acceptance screening + reproducibility + limitations"
+                    ),
+                ]
+            ),
+            language="text",
+        )
+
+        st.download_button(
+            "Download Controller Evaluation Report",
+            evaluation_report_text.encode("utf-8"),
+            "controller_evaluation_report.txt",
+            "text/plain",
+            key="download_controller_evaluation_report",
+        )
+
+        # -------------------------------------------------------------
+        # Formal controller verification record
+        # -------------------------------------------------------------
+        st.markdown("### Controller verification record")
+
+        st.write(
+            "Generate a traceable verification record for a selected controller "
+            "using the same measured results, operator-defined limits, warning "
+            "band, and PASS/WARN/FAIL logic shown above."
+        )
+
+        verification_controller = st.selectbox(
+            "Controller for verification record",
+            ["BasicRBC", "BC", "IQL", "CQL"],
+            key="verification_controller",
+        )
+
+        verification_row = acceptance[
+            acceptance["Controller"].astype(str) == verification_controller
+        ]
+
+        if verification_row.empty:
+            st.warning(
+                "Verification evidence is unavailable for the selected controller."
+            )
+        else:
+            verification_row = verification_row.iloc[0]
+
+            verification_status = str(
+                verification_row["Overall screening"]
+            )
+
+            if verification_status == "PASS":
+                status_statement = "REQUIREMENTS SATISFIED"
+            elif verification_status == "WARN":
+                status_statement = "REQUIREMENTS REQUIRE OPERATOR REVIEW"
+            elif verification_status == "FAIL":
+                status_statement = "REQUIREMENTS NOT SATISFIED"
+            else:
+                status_statement = "VERIFICATION INCOMPLETE"
+
+            verification_lines = [
+                "CONTROLLER VERIFICATION RECORD",
+                "=" * 72,
+                "",
+                "1. EVALUATION IDENTITY",
+                f"Controller: {verification_controller}",
+                "Environment: CityLearn",
+                "Buildings: 3",
+                "Observation dimension: 52",
+                "Continuous action dimension: 9",
+                "Evaluation horizon: 719 control steps",
+                (
+                    "Controller artifact: CityLearn BasicRBC fixed rule-based "
+                    "policy"
+                    if verification_controller == "BasicRBC"
+                    else (
+                        "Controller artifact family: "
+                        f"results/citylearn_{verification_controller.lower()}_"
+                        "seed_<n>.d3"
+                    )
+                ),
+                "",
+                "2. OPERATOR-DEFINED ACCEPTANCE CRITERIA",
+                f"Maximum net electricity: {energy_limit:.3f}",
+                f"Maximum electricity cost: {cost_limit:.3f}",
+                f"Maximum carbon emissions: {carbon_limit:.3f}",
+                f"Maximum peak building electricity: {peak_limit:.3f}",
+                f"Maximum worst-building discomfort: {comfort_limit:.2f}%",
+                f"Warning band above limits: {warning_band:.1f}%",
+                "",
+                "3. MEASURED VERIFICATION EVIDENCE",
+                (
+                    "Net electricity: "
+                    f"{float(verification_row['net_electricity_consumption']):.3f}"
+                    f" | Status: {verification_row['Energy']}"
+                ),
+                (
+                    "Electricity cost: "
+                    f"{float(verification_row['electricity_cost']):.3f}"
+                    f" | Status: {verification_row['Cost']}"
+                ),
+                (
+                    "Carbon emissions: "
+                    f"{float(verification_row['carbon_emission']):.3f}"
+                    f" | Status: {verification_row['Carbon']}"
+                ),
+                (
+                    "Peak building electricity: "
+                    f"{float(verification_row['peak_net_electricity']):.3f}"
+                    f" | Status: {verification_row['Peak']}"
+                ),
+            ]
+
+            discomfort_value = verification_row[
+                "Worst building discomfort (%)"
+            ]
+
+            if pd.isna(discomfort_value):
+                verification_lines.append(
+                    "Worst-building discomfort: NOT EVALUATED "
+                    f"| Status: {verification_row['Comfort']}"
+                )
+            else:
+                verification_lines.append(
+                    "Worst-building discomfort: "
+                    f"{float(discomfort_value):.2f}%"
+                    f" | Status: {verification_row['Comfort']}"
+                )
+
+            verification_lines += [
+                "",
+                "4. OVERALL VERIFICATION RESULT",
+                f"Screening result: {verification_status}",
+                f"Decision statement: {status_statement}",
+                "",
+                "5. STATUS DEFINITIONS",
+                (
+                    "PASS: measured value is at or below the selected "
+                    "operator-defined limit."
+                ),
+                (
+                    "WARN: measured value exceeds the selected limit but remains "
+                    "within the selected warning band."
+                ),
+                (
+                    "FAIL: measured value exceeds the selected warning band."
+                ),
+                (
+                    "NOT EVALUATED: equivalent verification evidence is "
+                    "unavailable."
+                ),
+                "",
+                "6. EVIDENCE PROVENANCE",
+                "Offline dataset: 21,570 logged CityLearn transitions",
+                "Learned controllers: BC, IQL, CQL",
+                "Controlled training seeds: 1, 2, 3",
+                "Conventional reference: CityLearn BasicRBC",
+                "Application metrics: results/citylearn_application_metrics.csv",
+                "Comfort evidence: results/citylearn_comfort_summary.csv",
+                (
+                    "Native KPI evidence: "
+                    "results/citylearn_native_district_kpi_summary.csv"
+                ),
+                "",
+                "7. VALIDATION BOUNDARY",
+                (
+                    "This verification record documents simulation-based "
+                    "engineering acceptance screening."
+                ),
+                (
+                    "The acceptance limits are operator-defined scenario "
+                    "requirements, not universal building-safety thresholds."
+                ),
+                (
+                    "This record does not authorize physical-building deployment."
+                ),
+                (
+                    "Physical deployment requires BMS integration, explicit "
+                    "safety and comfort constraints, operational validation, "
+                    "fallback/override mechanisms, and staged commissioning."
+                ),
+            ]
+
+            verification_text = "\n".join(verification_lines)
+
+            st.code(
+                "\n".join(
+                    [
+                        f"Controller: {verification_controller}",
+                        f"Overall screening: {verification_status}",
+                        f"Decision statement: {status_statement}",
+                    ]
+                ),
+                language="text",
+            )
+
+            st.download_button(
+                "Download Controller Verification Record",
+                verification_text.encode("utf-8"),
+                (
+                    "controller_verification_"
+                    f"{verification_controller.lower()}.txt"
+                ),
+                "text/plain",
+                key="download_controller_verification_record",
+            )
+
     st.markdown("### Reproducibility specification")
 
     st.write(
