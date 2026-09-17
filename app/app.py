@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime, timezone
+import json
 import subprocess
 
 import pandas as pd
@@ -65,6 +66,19 @@ def read_csv(name):
     path = RESULTS / name
     return pd.read_csv(path) if path.exists() else None
 
+
+def read_json(name):
+    path = RESULTS / name
+    if not path.exists():
+        return None
+
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+experiment_manifest = read_json("experiment_manifest.json")
 
 application = read_csv("citylearn_application_metrics.csv")
 comfort = read_csv("citylearn_comfort_summary.csv")
@@ -2162,6 +2176,120 @@ results/citylearn_<algorithm>_seed_<n>.d3""",
         language="text",
     )
 
+    st.markdown("#### Experiment manifest")
+
+    if experiment_manifest is not None:
+        manifest_scope = experiment_manifest["experiment_scope"]
+        manifest_artifacts = experiment_manifest["controller_artifacts"]
+        manifest_evidence = experiment_manifest["preserved_evidence"]
+
+        m1, m2, m3, m4 = st.columns(4)
+
+        m1.metric(
+            "Manifest version",
+            str(experiment_manifest["manifest_version"]),
+        )
+        m2.metric(
+            "Saved controllers",
+            str(
+                manifest_artifacts[
+                    "available_saved_controller_count"
+                ]
+            ),
+        )
+        m3.metric(
+            "Controlled artifacts",
+            str(
+                manifest_artifacts[
+                    "controlled_evaluation_artifact_count"
+                ]
+            ),
+        )
+        m4.metric(
+            "Hashed evidence files",
+            str(len(manifest_evidence)),
+        )
+
+        st.write(
+            "Machine-readable experiment identity: "
+            f"{manifest_scope['environment']}; "
+            f"{manifest_scope['buildings']} buildings; "
+            f"{manifest_scope['observation_features']} observation features; "
+            f"{manifest_scope['continuous_actions']} continuous actions; "
+            f"{manifest_scope['evaluation_horizon_steps']} control steps; "
+            f"{manifest_scope['offline_logged_transitions']:,} logged transitions."
+        )
+
+        st.caption(
+            "Controlled evaluation seeds: "
+            + ", ".join(
+                str(seed)
+                for seed in manifest_scope[
+                    "controlled_evaluation_seeds"
+                ]
+            )
+            + ". SHA-256 hashes preserve the identity of controller "
+            "artifacts, engineering evidence files, and verification tests."
+        )
+
+        st.download_button(
+            "Download Experiment Manifest (JSON)",
+            json.dumps(
+                experiment_manifest,
+                indent=2,
+            ).encode("utf-8"),
+            "experiment_manifest.json",
+            "application/json",
+            key="download_experiment_manifest",
+        )
+
+        with st.expander("Inspect manifest provenance"):
+            st.code(
+                "\n".join(
+                    [
+                        (
+                            "Schema: "
+                            + experiment_manifest["manifest_schema"]
+                        ),
+                        (
+                            "Manifest version: "
+                            + str(
+                                experiment_manifest[
+                                    "manifest_version"
+                                ]
+                            )
+                        ),
+                        (
+                            "Dependency specification: "
+                            + experiment_manifest[
+                                "reproducibility"
+                            ]["dependency_specification"]
+                        ),
+                        (
+                            "Manifest generator: "
+                            + experiment_manifest[
+                                "reproducibility"
+                            ]["manifest_generator"]
+                        ),
+                        (
+                            "Current repository revision: "
+                            + evidence_identity["revision"]
+                        ),
+                    ]
+                ),
+                language="text",
+            )
+
+        st.warning(
+            experiment_manifest["validation_boundary"]
+        )
+    else:
+        st.warning(
+            "Experiment manifest is unavailable. Regenerate it with "
+            "scripts/generate_experiment_manifest.py before producing "
+            "a reproducibility evidence package."
+        )
+
     st.caption(
         "Reproducibility scope: the fixed dataset, controlled seed set, saved "
         "controller artifacts, evaluation configuration, and preserved result "
@@ -2186,6 +2314,8 @@ results/citylearn_<algorithm>_seed_<n>.d3""",
         "  results/citylearn_native_district_kpi_summary.csv",
         "  results/citylearn_guarded_v2_summary.csv",
         "  results/citylearn_guarded_v2_events.csv",
+        "  results/experiment_manifest.json",
+        "Experiment manifest: machine-readable artifact identity with SHA-256 hashes.",
         "The repository dependency specification controls package versions.",
     ]
 

@@ -241,3 +241,92 @@ def test_application_contains_acceptance_and_evidence_generation():
 
     for marker in required_markers:
         assert marker in source, f"Missing engineering application capability: {marker}"
+
+
+def test_experiment_manifest_is_valid_and_consistent():
+    import hashlib
+    import json
+
+    manifest_path = RESULTS / "experiment_manifest.json"
+    generator_path = ROOT / "scripts" / "generate_experiment_manifest.py"
+
+    assert manifest_path.exists(), "Missing experiment manifest"
+    assert generator_path.exists(), "Missing experiment manifest generator"
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert (
+        manifest["manifest_schema"]
+        == "offline-iql-citylearn-experiment-manifest"
+    )
+    assert manifest["manifest_version"] == 1
+
+    scope = manifest["experiment_scope"]
+    assert scope["environment"] == "CityLearn"
+    assert scope["buildings"] == 3
+    assert scope["observation_features"] == 52
+    assert scope["continuous_actions"] == 9
+    assert scope["evaluation_horizon_steps"] == EXPECTED_HORIZON
+    assert scope["offline_logged_transitions"] == 21570
+    assert set(scope["controlled_evaluation_seeds"]) == EXPECTED_SEEDS
+    assert set(scope["learned_controllers"]) == EXPECTED_ALGORITHMS
+    assert scope["conventional_reference"] == "BasicRBC"
+
+    controller_artifacts = manifest["controller_artifacts"]
+    assert controller_artifacts["available_saved_controller_count"] == 12
+    assert controller_artifacts["controlled_evaluation_artifact_count"] == 9
+
+    controlled = [
+        artifact
+        for artifact in controller_artifacts["artifacts"]
+        if artifact["used_in_controlled_evaluation"]
+    ]
+    assert len(controlled) == 9
+
+    for artifact in controller_artifacts["artifacts"]:
+        path = ROOT / artifact["path"]
+        assert path.exists()
+        assert path.stat().st_size == artifact["size_bytes"]
+
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        assert digest == artifact["sha256"]
+
+    expected_evidence = {
+        "results/citylearn_application_metrics.csv",
+        "results/citylearn_comfort_summary.csv",
+        "results/citylearn_native_district_kpi_summary.csv",
+        "results/citylearn_guarded_v2_summary.csv",
+        "results/citylearn_guarded_v2_events.csv",
+    }
+
+    evidence_paths = {
+        item["path"] for item in manifest["preserved_evidence"]
+    }
+    assert evidence_paths == expected_evidence
+
+    for artifact in manifest["preserved_evidence"]:
+        path = ROOT / artifact["path"]
+        assert path.exists()
+        assert path.stat().st_size == artifact["size_bytes"]
+
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        assert digest == artifact["sha256"]
+
+
+def test_application_exposes_experiment_manifest():
+    source = APP.read_text(encoding="utf-8")
+
+    required_markers = (
+        'experiment_manifest = read_json("experiment_manifest.json")',
+        'st.markdown("#### Experiment manifest")',
+        '"Download Experiment Manifest (JSON)"',
+        '"Inspect manifest provenance"',
+        '"download_experiment_manifest"',
+        'read_json("experiment_manifest.json")',
+        '["manifest_generator"]',
+    )
+
+    for marker in required_markers:
+        assert marker in source, (
+            f"Missing experiment-manifest application marker: {marker}"
+        )

@@ -1,0 +1,185 @@
+{
+  "manifest_schema": "offline-iql-citylearn-experiment-manifest",
+  "manifest_version": 1,
+  "project": {
+    "name": "Offline RL for Smart Building Energy Management",
+    "application": "Streamlit engineering evaluation prototype"
+  },
+  "experiment_scope": {
+    "environment": "CityLearn",
+    "buildings": 3,
+    "observation_features": 52,
+    "continuous_actions": 9,
+    "evaluation_horizon_steps": 719,
+    "offline_logged_transitions": 21570,
+    "learned_controllers": [
+      "BC",
+      "IQL",
+      "CQL"
+    ],
+    "conventional_reference": "BasicRBC",
+    "controlled_evaluation_seeds": [
+      1,
+      2,
+      3
+    ]
+  },
+  "controller_artifacts": {
+    "available_saved_controller_count": 12,
+    "controlled_evaluation_artifact_count": 9,
+    "artifacts": [
+      {
+        "algorithm": "BC",
+        "seed": 0,
+        "path": "results/citylearn_bc_seed_0.d3",
+        "used_in_controlled_evaluation": false,
+        "size_bytes": 987547,
+        "sha256": "455c8f577b38fa3ad654aeee0d90cf13020941408d12c7bbb7703774246bdf9f"
+      },
+      {
+        "algorithm": "BC",
+        "seed": 1,
+        "path": "results/citylearn_bc_seed_1.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 987547,
+        "sha256": "b406845786a6006c8fa0c8cddeee5ee69057ef28409f8e847174ebebd918c253"
+      },
+      {
+        "algorithm": "BC",
+        "seed": 2,
+        "path": "results/citylearn_bc_seed_2.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 987547,
+        "sha256": "8e782afd4a47953839184ac3c1c1609c8457b2039644d603a4adc5e6bda3caf9"
+      },
+      {
+        "algorithm": "BC",
+        "seed": 3,
+        "path": "results/citylearn_bc_seed_3.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 987547,
+        "sha256": "17f58abc7588a0abd7af38caac1b00098b286feb543b62c52d842148501b5130"
+      },
+      {
+        "algorithm": "IQL",
+        "seed": 0,
+        "path": "results/citylearn_iql_seed_0.d3",
+        "used_in_controlled_evaluation": false,
+        "size_bytes": 4590431,
+        "sha256": "1d152aec7a3e86ef7dd6e1721825f614cfd1e6903c93cfc169eef9ccd06541bb"
+      },
+      {
+        "algorithm": "IQL",
+        "seed": 1,
+        "path": "results/citylearn_iql_seed_1.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 4590431,
+        "sha256": "ce10f71d79ea91759db4b3c3e45ba9fc71b1434e1d16823b59005a82d1719da8"
+      },
+      {
+        "algorithm": "IQL",
+        "seed": 2,
+        "path": "results/citylearn_iql_seed_2.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 4590431,
+        "sha256": "d4f396817a951083e6a8d5b8ac0befe3c486df0e6e24256fd02d13b102a30d4b"
+      },
+      {
+        "algorithm": "IQL",
+        "seed": 3,
+        "path": "results/citylearn_iql_seed_3.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 4590431,
+        "sha256": "e5f56f88dbf4052b4fcbbb68fd332341fc567ffbdeacf57c1cef7534c8ec2a63"
+      },
+      {
+        "algorithm": "CQL",
+        "seed": 0,
+        "path": "results/citylearn_cql_seed_0.d3",
+        "used_in_controlled_evaluation": false,
+        "size_bytes": 3659575,
+        "sha256": "0e3db923e9d1f00778da9244a2a46035e7c83699ecd38059f71586238e826d0b"
+      },
+      {
+        "algorithm": "CQL",
+        "seed": 1,
+        "path": "results/citylearn_cql_seed_1.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 3659575,
+        "sha256": "fc8eccb3695157d13e45e3e7ed108d7f57eec54500cf9fb107a62d0f47204d64"
+      },
+      {
+        "algorithm": "CQL",
+        "seed": 2,
+        "path": "results/citylearn_cql_seed_2.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 3659575,
+        "sha256": "5d465d91460f7a20d998db97bf060fab1853dbd94d09adf9576c7e8846b11ae6"
+      },
+      {
+        "algorithm": "CQL",
+        "seed": 3,
+        "path": "results/citylearn_cql_seed_3.d3",
+        "used_in_controlled_evaluation": true,
+        "size_bytes": 3659575,
+        "sha256": "3f7890da88b9fb93dffc53f5494baa2f1348031b7e087cfe41cdbd6e01d92347"
+      }
+    ]
+  },
+  "preserved_evidence": [
+    {
+      "path": "results/citylearn_application_metrics.csv",
+      "size_bytes": 1045,
+      "sha256": "aa9d0007c12b80205659d8355b93437324d4a0e7d00fafc11993fe8e8c0501bc"
+    },
+    {
+      "path": "results/citylearn_comfort_summary.csv",
+      "size_bytes": 3558,
+      "sha256": "cf589f5225dde1169e3c70ee2addd483f73b9f7a4b62ff818b3f69cac4ad38fd"
+    },
+    {
+      "path": "results/citylearn_native_district_kpi_summary.csv",
+      "size_bytes": 4350,
+      "sha256": "5b9c87c363e801f7c587687d9809c4a39d4f1de9b0c41344d405c0437d0247d7"
+    },
+    {
+      "path": "results/citylearn_guarded_v2_summary.csv",
+      "size_bytes": 944,
+      "sha256": "0173362a929e625cb83ecbab059e5903cc15f009d9a1a3f8fd58b7c09bc8172a"
+    },
+    {
+      "path": "results/citylearn_guarded_v2_events.csv",
+      "size_bytes": 30416,
+      "sha256": "5cd33ce8e9cd57050fb5f0cdca16a21acb404afb3ecb2fb24483d7f46e547ae2"
+    }
+  ],
+  "verification": {
+    "test_files": [
+      {
+        "path": "tests/test_application_acceptance.py",
+        "size_bytes": 10769,
+        "sha256": "0484549600210cb240768fb03ce119d049675f296cad8b33e7b371fab0cef89d"
+      },
+      {
+        "path": "tests/test_guardrail_evidence.py",
+        "size_bytes": 3255,
+        "sha256": "5ba4d79cef862c1bd05215ef8e58bb8f8945123221bf5d818e8127992c7308bf"
+      },
+      {
+        "path": "tests/test_live_evaluation.py",
+        "size_bytes": 913,
+        "sha256": "831ebb87271bc9af4af18091a202f4d090f42d450ff9497b1ca58008b7ce8a5f"
+      }
+    ],
+    "acceptance_test_file": "tests/test_application_acceptance.py",
+    "guardrail_regression_test_file": "tests/test_guardrail_evidence.py",
+    "live_evaluation_test_file": "tests/test_live_evaluation.py"
+  },
+  "reproducibility": {
+    "dependency_specification": "requirements.txt",
+    "controller_execution_service": "app/citylearn_service.py",
+    "manifest_generator": "scripts/generate_experiment_manifest.py",
+    "result_directory": "results"
+  },
+  "validation_boundary": "Evidence in this manifest supports reproducible simulation-based engineering evaluation in CityLearn. It does not establish physical-building safety, certify a controller for deployment, or replace BMS integration, commissioning, operator override, and field validation."
+}
