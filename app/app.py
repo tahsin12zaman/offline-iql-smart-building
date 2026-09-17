@@ -1512,6 +1512,125 @@ with tabs[5]:
             "limits or authorization for physical-building deployment.",
         ]
 
+    st.markdown("### Reproducibility specification")
+
+    st.write(
+        "The application is backed by a reproducible experimental workflow that "
+        "separates offline policy development, saved controller artifacts, fresh "
+        "evaluation, engineering analysis, and the user-facing decision-support layer."
+    )
+
+    reproducibility = pd.DataFrame(
+        [
+            {
+                "Stage": "1. Logged dataset",
+                "Specification": "CityLearn smart-building control data",
+                "Reproducibility evidence": "21,570 offline transitions used for policy development.",
+            },
+            {
+                "Stage": "2. Offline policy development",
+                "Specification": "BC, IQL, and CQL",
+                "Reproducibility evidence": "Policies are trained from logged transitions without online environment learning.",
+            },
+            {
+                "Stage": "3. Controlled repetitions",
+                "Specification": "Seeds 1, 2, and 3",
+                "Reproducibility evidence": "Learned-controller comparison and comfort summaries use the controlled seed set.",
+            },
+            {
+                "Stage": "4. Saved controller artifacts",
+                "Specification": "Persisted .d3 policy models",
+                "Reproducibility evidence": "Live Controller loads the selected saved algorithm/seed policy rather than retraining it.",
+            },
+            {
+                "Stage": "5. Evaluation environment",
+                "Specification": "CityLearn; 3 buildings; 52 observations; 9 continuous actions",
+                "Reproducibility evidence": "Centralized controller evaluation uses a fixed 719-step horizon.",
+            },
+            {
+                "Stage": "6. Conventional reference",
+                "Specification": "CityLearn BasicRBC",
+                "Reproducibility evidence": "Evaluated on the same schema, horizon, and application-metric definitions.",
+            },
+            {
+                "Stage": "7. Evaluation outputs",
+                "Specification": "Energy, cost, carbon, peak, comfort, and native CityLearn KPIs",
+                "Reproducibility evidence": "Results are preserved as analysis CSV artifacts and exposed by the application.",
+            },
+            {
+                "Stage": "8. Application layer",
+                "Specification": "Streamlit decision-support interface",
+                "Reproducibility evidence": "Saved-policy execution, controller comparison, acceptance screening, failure analysis, and downloadable outputs.",
+            },
+        ]
+    )
+
+    st.dataframe(
+        reproducibility,
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.code(
+        """Logged CityLearn transitions (21,570)
+        |
+        v
+Offline training: BC / IQL / CQL
+Controlled seeds: 1 / 2 / 3
+        |
+        v
+Saved .d3 controller artifacts
+        |
+        v
+Fresh CityLearn evaluation
+3 buildings | 52 observations | 9 actions | 719 steps
+        |
+        +----------------------+
+        |                      |
+        v                      v
+Application metrics      Comfort / native KPIs
+        |                      |
+        +----------+-----------+
+                   |
+                   v
+Streamlit controller evaluation + decision support""",
+        language="text",
+    )
+
+    st.markdown("**Result artifacts used by the application**")
+    st.code(
+        """results/citylearn_application_metrics.csv
+results/citylearn_comfort_summary.csv
+results/citylearn_native_district_kpi_summary.csv
+results/citylearn_<algorithm>_seed_<n>.d3""",
+        language="text",
+    )
+
+    st.caption(
+        "Reproducibility scope: the fixed dataset, controlled seed set, saved "
+        "controller artifacts, evaluation configuration, and preserved result "
+        "tables provide traceable evidence from offline policy development to "
+        "the application. Exact package versions are controlled separately by "
+        "the repository dependency specification."
+    )
+
+    report_lines += [
+        "",
+        "REPRODUCIBILITY SPECIFICATION",
+        "Logged CityLearn transitions: 21,570",
+        "Learned controllers: BC, IQL, CQL",
+        "Controlled seeds: 1, 2, 3",
+        "Environment: 3 buildings, 52 observations, 9 continuous actions",
+        "Evaluation horizon: 719 control steps",
+        "Saved learned policies: persisted .d3 controller artifacts",
+        "Conventional reference: CityLearn BasicRBC",
+        "Application result artifacts:",
+        "  results/citylearn_application_metrics.csv",
+        "  results/citylearn_comfort_summary.csv",
+        "  results/citylearn_native_district_kpi_summary.csv",
+        "The repository dependency specification controls package versions.",
+    ]
+
     st.markdown("### Engineering requirements and verification")
 
     requirements = pd.DataFrame(
