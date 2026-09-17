@@ -120,6 +120,38 @@ with tabs[0]:
         "9",
     )
 
+    st.markdown("### Intended user and operational use case")
+
+    st.write(
+        "The intended user is a building energy manager, facilities engineer, "
+        "or controls engineer who needs to evaluate candidate smart-building "
+        "control policies before considering physical deployment."
+    )
+
+    st.markdown(
+        """
+**Operational problem:** Building operators must balance multiple objectives,
+including electricity consumption, operating cost, carbon emissions, peak
+demand, and occupant thermal comfort. A controller that performs well on one
+objective may perform poorly on another.
+
+**How this application supports the user:** The prototype allows an operator
+to execute previously trained offline controllers in a realistic CityLearn
+simulation, compare them with a conventional rule-based baseline, inspect
+building-level and district-level outcomes, identify failure cases, and
+generate decision-support evidence.
+
+**Intended decision:** The application supports pre-deployment screening of
+candidate controllers. It helps identify controllers that warrant further
+engineering validation and controllers whose observed trade-offs or failure
+modes require investigation before any physical-building trial.
+
+**Application boundary:** The system provides simulation-based engineering
+decision support. It does not autonomously approve a controller for physical
+deployment or directly command a building-management system.
+"""
+    )
+
     st.markdown("### Project objectives and deliverables")
 
     st.markdown(
@@ -1167,6 +1199,318 @@ with tabs[5]:
                 "BasicRBC is excluded from the comfort comparison because",
                 "equivalent RBC comfort statistics have not been evaluated.",
             ]
+
+    st.markdown("### Engineering acceptance screening")
+
+    st.write(
+        "Define scenario-specific acceptance limits and screen the measured "
+        "controller results against them. These limits are operator-defined "
+        "engineering requirements for this analysis; they are not universal "
+        "building-safety thresholds or evidence of physical-deployment approval."
+    )
+
+    if learned_means is None:
+        st.warning(
+            "Application metrics are unavailable, so controller acceptance "
+            "screening cannot be performed."
+        )
+    else:
+        # Use BC as a transparent starting reference for the editable scenario
+        # limits. These defaults are comparative benchmarks, not safety limits.
+        bc_reference = learned_means[
+            learned_means["algorithm"] == "BC"
+        ]
+
+        if not bc_reference.empty:
+            bc_reference = bc_reference.iloc[0]
+
+            default_energy = float(
+                bc_reference["net_electricity_consumption"]
+            )
+            default_cost = float(
+                bc_reference["electricity_cost"]
+            )
+            default_carbon = float(
+                bc_reference["carbon_emission"]
+            )
+            default_peak = float(
+                bc_reference["peak_net_electricity"]
+            )
+        else:
+            default_energy = 1500.0
+            default_cost = 45.0
+            default_carbon = 720.0
+            default_peak = 10.0
+
+        default_comfort = 70.0
+        worst_comfort = None
+
+        if comfort is not None and {
+            "algorithm", "cost_function", "mean"
+        }.issubset(comfort.columns):
+            acceptance_comfort = comfort[
+                comfort["cost_function"] == "discomfort_proportion"
+            ].copy()
+
+            if not acceptance_comfort.empty:
+                acceptance_comfort["mean_percent"] = (
+                    acceptance_comfort["mean"] * 100.0
+                )
+                worst_comfort = (
+                    acceptance_comfort.groupby("algorithm")["mean_percent"]
+                    .max()
+                    .reset_index()
+                )
+                worst_comfort["algorithm"] = (
+                    worst_comfort["algorithm"].str.upper()
+                )
+
+                bc_comfort = worst_comfort[
+                    worst_comfort["algorithm"] == "BC"
+                ]
+                if not bc_comfort.empty:
+                    default_comfort = float(
+                        bc_comfort.iloc[0]["mean_percent"]
+                    )
+
+        st.caption(
+            "Initial limits use BC's measured mean performance as a comparative "
+            "reference where available. The operator can change every limit. "
+            "For comfort, the criterion uses the worst measured building-level "
+            "mean discomfort for each learned controller."
+        )
+
+        a1, a2, a3 = st.columns(3)
+        a4, a5, a6 = st.columns(3)
+
+        energy_limit = a1.number_input(
+            "Maximum net electricity",
+            min_value=0.0,
+            value=float(default_energy),
+            step=10.0,
+            format="%.3f",
+            help="Scenario-specific maximum episode-total net electricity.",
+        )
+        cost_limit = a2.number_input(
+            "Maximum electricity cost",
+            min_value=0.0,
+            value=float(default_cost),
+            step=1.0,
+            format="%.3f",
+            help="Scenario-specific maximum episode-total electricity cost.",
+        )
+        carbon_limit = a3.number_input(
+            "Maximum carbon emissions",
+            min_value=0.0,
+            value=float(default_carbon),
+            step=10.0,
+            format="%.3f",
+            help="Scenario-specific maximum episode-total carbon emissions.",
+        )
+        peak_limit = a4.number_input(
+            "Maximum peak building electricity",
+            min_value=0.0,
+            value=float(default_peak),
+            step=0.1,
+            format="%.3f",
+            help="Maximum observed building-level instantaneous net electricity.",
+        )
+        comfort_limit = a5.number_input(
+            "Maximum building discomfort (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(default_comfort),
+            step=1.0,
+            format="%.2f",
+            help=(
+                "Maximum allowed mean discomfort for the worst measured building "
+                "under a learned controller. BasicRBC comfort is not evaluated."
+            ),
+        )
+        warning_band = a6.number_input(
+            "Warning band above limit (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=5.0,
+            step=1.0,
+            help=(
+                "Values above a limit but within this percentage are marked WARN; "
+                "larger exceedances are marked FAIL."
+            ),
+        )
+
+        acceptance = learned_means.copy()
+        acceptance = acceptance.rename(columns={"algorithm": "Controller"})
+
+        acceptance = pd.concat(
+            [
+                pd.DataFrame(
+                    [
+                        {
+                            "Controller": "BasicRBC",
+                            **rbc_metrics,
+                        }
+                    ]
+                ),
+                acceptance,
+            ],
+            ignore_index=True,
+        )
+
+        acceptance["Controller"] = acceptance["Controller"].replace(
+            {"bc": "BC", "iql": "IQL", "cql": "CQL"}
+        )
+
+        if worst_comfort is not None:
+            comfort_lookup = dict(
+                zip(
+                    worst_comfort["algorithm"],
+                    worst_comfort["mean_percent"],
+                )
+            )
+        else:
+            comfort_lookup = {}
+
+        acceptance["Worst building discomfort (%)"] = acceptance[
+            "Controller"
+        ].map(comfort_lookup)
+
+        def screening_status(value, limit):
+            if pd.isna(value):
+                return "NOT EVALUATED"
+            value = float(value)
+            limit = float(limit)
+            warn_limit = limit * (1.0 + float(warning_band) / 100.0)
+            if value <= limit:
+                return "PASS"
+            if value <= warn_limit:
+                return "WARN"
+            return "FAIL"
+
+        acceptance["Energy"] = acceptance[
+            "net_electricity_consumption"
+        ].apply(lambda x: screening_status(x, energy_limit))
+        acceptance["Cost"] = acceptance[
+            "electricity_cost"
+        ].apply(lambda x: screening_status(x, cost_limit))
+        acceptance["Carbon"] = acceptance[
+            "carbon_emission"
+        ].apply(lambda x: screening_status(x, carbon_limit))
+        acceptance["Peak"] = acceptance[
+            "peak_net_electricity"
+        ].apply(lambda x: screening_status(x, peak_limit))
+        acceptance["Comfort"] = acceptance[
+            "Worst building discomfort (%)"
+        ].apply(lambda x: screening_status(x, comfort_limit))
+
+        status_columns = ["Energy", "Cost", "Carbon", "Peak", "Comfort"]
+
+        def overall_screen(row):
+            statuses = [row[c] for c in status_columns]
+            evaluated = [s for s in statuses if s != "NOT EVALUATED"]
+            if "FAIL" in evaluated:
+                return "FAIL"
+            if "WARN" in evaluated:
+                return "WARN"
+            if evaluated and all(s == "PASS" for s in evaluated):
+                return "PASS"
+            return "NOT EVALUATED"
+
+        acceptance["Overall screening"] = acceptance.apply(
+            overall_screen,
+            axis=1,
+        )
+
+        controller_order = ["BasicRBC", "BC", "IQL", "CQL"]
+        acceptance["Controller"] = pd.Categorical(
+            acceptance["Controller"],
+            categories=controller_order,
+            ordered=True,
+        )
+        acceptance = acceptance.sort_values("Controller").reset_index(drop=True)
+
+        screening_table = acceptance[
+            [
+                "Controller",
+                "Energy",
+                "Cost",
+                "Carbon",
+                "Peak",
+                "Comfort",
+                "Overall screening",
+            ]
+        ].copy()
+
+        st.dataframe(
+            screening_table,
+            width="stretch",
+            hide_index=True,
+        )
+
+        st.caption(
+            "PASS = measured value is at or below the selected limit. "
+            "WARN = measured value exceeds the limit but remains within the "
+            "selected warning band. FAIL = measured value exceeds the warning "
+            "band. NOT EVALUATED means equivalent evidence is unavailable."
+        )
+
+        detail_table = acceptance[
+            [
+                "Controller",
+                "net_electricity_consumption",
+                "electricity_cost",
+                "carbon_emission",
+                "peak_net_electricity",
+                "Worst building discomfort (%)",
+            ]
+        ].rename(
+            columns={
+                "net_electricity_consumption": "Net Electricity",
+                "electricity_cost": "Electricity Cost",
+                "carbon_emission": "Carbon Emissions",
+                "peak_net_electricity": "Peak Building Electricity",
+            }
+        )
+
+        with st.expander("Show measured values used for screening"):
+            st.dataframe(
+                detail_table.round(3),
+                width="stretch",
+                hide_index=True,
+            )
+
+        st.info(
+            "The overall screening result is deliberately conservative: any "
+            "FAIL produces an overall FAIL, and any WARN produces an overall "
+            "WARN unless another evaluated criterion fails. Missing BasicRBC "
+            "comfort evidence is shown as NOT EVALUATED rather than being "
+            "treated as either success or failure."
+        )
+
+        report_lines += [
+            "",
+            "ENGINEERING ACCEPTANCE SCREENING",
+            (
+                "Limits: net electricity <= "
+                f"{energy_limit:.3f}; cost <= {cost_limit:.3f}; "
+                f"carbon <= {carbon_limit:.3f}; peak <= {peak_limit:.3f}; "
+                f"worst-building discomfort <= {comfort_limit:.2f}%"
+            ),
+            f"Warning band above each limit: {warning_band:.1f}%",
+        ]
+
+        for _, row in screening_table.iterrows():
+            report_lines.append(
+                f"  {row['Controller']}: Energy={row['Energy']}, "
+                f"Cost={row['Cost']}, Carbon={row['Carbon']}, "
+                f"Peak={row['Peak']}, Comfort={row['Comfort']}, "
+                f"Overall={row['Overall screening']}"
+            )
+
+        report_lines += [
+            "These are operator-defined scenario criteria, not universal safety",
+            "limits or authorization for physical-building deployment.",
+        ]
 
     st.markdown("### Engineering requirements and verification")
 
