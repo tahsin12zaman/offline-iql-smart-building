@@ -1,4 +1,6 @@
 from pathlib import Path
+from datetime import datetime, timezone
+import subprocess
 
 import pandas as pd
 import plotly.express as px
@@ -9,6 +11,40 @@ from citylearn_service import run_live_evaluation
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
+
+
+def _git_value(*args):
+    """Return repository metadata without making report generation depend on Git."""
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(ROOT), *args],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return "unavailable"
+
+
+def _create_evidence_identity():
+    generated = datetime.now(timezone.utc)
+    revision = _git_value("rev-parse", "--short", "HEAD")
+    branch = _git_value("branch", "--show-current") or "detached"
+
+    timestamp_id = generated.strftime("%Y%m%dT%H%M%SZ")
+    evidence_id = f"CL-EVID-{timestamp_id}-{revision}"
+
+    return {
+        "id": evidence_id,
+        "generated_utc": generated.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "revision": revision,
+        "branch": branch,
+    }
+
+
+if "evidence_identity" not in st.session_state:
+    st.session_state.evidence_identity = _create_evidence_identity()
+
+evidence_identity = st.session_state.evidence_identity
 
 
 st.set_page_config(
@@ -82,6 +118,7 @@ tabs = st.tabs(
         "Native CityLearn KPIs",
         "Comfort Guardrail",
         "Operator Decision Support",
+        "Engineering Scenario",
     ]
 )
 
@@ -1633,6 +1670,14 @@ with tabs[6]:
             "CONTROLLER EVALUATION REPORT",
             "=" * 72,
             "",
+            "EVIDENCE IDENTITY",
+            f"Evidence ID: {evidence_identity['id']}",
+            f"Generated: {evidence_identity['generated_utc']}",
+            f"Repository revision: {evidence_identity['revision']}",
+            f"Repository branch: {evidence_identity['branch']}",
+            "Evidence scope: CityLearn simulation/application verification",
+            "Primary offline dataset: data/citylearn_logged_multi.npz",
+            "",
             "1. PURPOSE",
             (
                 "Engineering decision-support report for comparing offline "
@@ -1801,6 +1846,9 @@ with tabs[6]:
             "\n".join(
                 [
                     "Engineering evidence package ready",
+                    f"Evidence ID: {evidence_identity['id']}",
+                    f"Generated: {evidence_identity['generated_utc']}",
+                    f"Repository revision: {evidence_identity['revision']}",
                     f"Controllers evaluated: {len(acceptance)}",
                     "Environment: CityLearn",
                     "Evaluation horizon: 719 control steps",
@@ -1867,6 +1915,12 @@ with tabs[6]:
                 "=" * 72,
                 "",
                 "1. EVALUATION IDENTITY",
+                f"Evidence ID: {evidence_identity['id']}",
+                f"Generated: {evidence_identity['generated_utc']}",
+                f"Repository revision: {evidence_identity['revision']}",
+                f"Repository branch: {evidence_identity['branch']}",
+                "Evidence scope: CityLearn simulation/application verification",
+                "Primary offline dataset: data/citylearn_logged_multi.npz",
                 f"Controller: {verification_controller}",
                 "Environment: CityLearn",
                 "Buildings: 3",
@@ -1990,6 +2044,9 @@ with tabs[6]:
             st.code(
                 "\n".join(
                     [
+                        f"Evidence ID: {evidence_identity['id']}",
+                        f"Generated: {evidence_identity['generated_utc']}",
+                        f"Repository revision: {evidence_identity['revision']}",
                         f"Controller: {verification_controller}",
                         f"Overall screening: {verification_status}",
                         f"Decision statement: {status_statement}",
@@ -2139,49 +2196,89 @@ results/citylearn_<algorithm>_seed_<n>.d3""",
             {
                 "ID": "R1",
                 "Engineering requirement": "Use logged building-control data for offline policy development.",
-                "Implementation": "21,570 logged CityLearn transitions; BC/IQL/CQL trained offline.",
-                "Verification evidence": "Dataset, training pipeline, and saved controller models.",
+                "Implementation": "21,570 logged CityLearn transitions; BC, IQL, and CQL trained offline.",
+                "Verification method": "Inspect dataset dimensions, training configuration, and persisted controller artifacts.",
+                "Evidence / artifact": "data/citylearn_logged_multi.npz + results/citylearn_<algorithm>_seed_<n>.d3",
+                "Status": "VERIFIED",
             },
             {
                 "ID": "R2",
                 "Engineering requirement": "Execute trained controllers without online policy improvement.",
-                "Implementation": "Live Controller loads a saved policy and performs a fresh CityLearn rollout.",
-                "Verification evidence": "719-step live evaluation with downloadable time-series output.",
+                "Implementation": "Live Controller loads a selected saved policy and performs a fresh CityLearn rollout.",
+                "Verification method": "Execute saved-policy evaluation and confirm the fixed rollout horizon without retraining.",
+                "Evidence / artifact": "Live Controller evaluation + downloadable 719-step time-series output",
+                "Status": "VERIFIED",
             },
             {
                 "ID": "R3",
                 "Engineering requirement": "Compare learned control against a conventional reference.",
-                "Implementation": "CityLearn BasicRBC conventional rule-based baseline.",
-                "Verification evidence": "Same schema, horizon, and application-metric definitions.",
+                "Implementation": "CityLearn BasicRBC is retained as the conventional rule-based baseline.",
+                "Verification method": "Compare controllers under the common CityLearn schema, horizon, and metric definitions.",
+                "Evidence / artifact": "results/citylearn_application_metrics.csv + Controller Comparison",
+                "Status": "VERIFIED",
             },
             {
                 "ID": "R4",
-                "Engineering requirement": "Quantify operational outcomes beyond RL reward.",
-                "Implementation": "Energy, cost, carbon, peak, native KPIs, and thermal comfort.",
-                "Verification evidence": "Controller Comparison, Thermal Comfort, and Native KPI tabs.",
+                "Engineering requirement": "Quantify operational outcomes beyond cumulative RL reward.",
+                "Implementation": "Energy, cost, carbon, peak demand, native CityLearn KPIs, and thermal comfort are evaluated.",
+                "Verification method": "Inspect preserved metric tables and application visualizations.",
+                "Evidence / artifact": "citylearn_application_metrics.csv + citylearn_native_district_kpi_summary.csv + citylearn_comfort_summary.csv",
+                "Status": "VERIFIED",
             },
             {
                 "ID": "R5",
                 "Engineering requirement": "Expose operational trade-offs and controller failure cases.",
-                "Implementation": "Building-level comfort analysis and operator-priority evidence panel.",
-                "Verification evidence": "IQL Building 1 and CQL building-level comfort failure patterns are surfaced.",
+                "Implementation": "Building-level comfort analysis, multi-KPI comparison, and operator-priority evidence are provided.",
+                "Verification method": "Inspect controller-level and building-level results for conflicting operational outcomes.",
+                "Evidence / artifact": "Thermal Comfort + Operator Decision Support + failure and safety analysis",
+                "Status": "VERIFIED",
             },
             {
                 "ID": "R6",
-                "Engineering requirement": "Provide a practically demonstrable user-facing prototype.",
-                "Implementation": "Interactive Streamlit application with controller execution and decision support.",
-                "Verification evidence": "Local/public application workflow and downloadable evaluation outputs.",
+                "Engineering requirement": "Provide a practically demonstrable user-facing engineering prototype.",
+                "Implementation": "Interactive Streamlit application provides controller execution, analysis, decision support, and guided workflow.",
+                "Verification method": "Execute the application workflow from controller selection through engineering evidence review.",
+                "Evidence / artifact": "Live Controller + Engineering Scenario + downloadable outputs",
+                "Status": "VERIFIED",
             },
             {
                 "ID": "R7",
                 "Engineering requirement": "Mitigate detected occupied overheating while preserving traceable supervisory behavior.",
-                "Implementation": "Simulation-validated comfort guardrail replaces only an affected building's IQL cooling-device action with BasicRBC cooling.",
-                "Verification evidence": "IQL Seed 1 normal-vs-guarded evaluation, 207 intervention records, and quantified comfort/resource trade-offs.",
+                "Implementation": "The simulation-validated comfort guardrail selectively substitutes BasicRBC cooling for an affected building.",
+                "Verification method": "Compare normal and guarded IQL Seed 1 evaluations and verify intervention-event consistency.",
+                "Evidence / artifact": "citylearn_guarded_v2_summary.csv + citylearn_guarded_v2_events.csv + test_guardrail_evidence.py",
+                "Status": "VERIFIED",
+            },
+            {
+                "ID": "R8",
+                "Engineering requirement": "Screen candidate controllers against explicit scenario-specific engineering criteria.",
+                "Implementation": "Operator-defined limits and warning bands produce PASS, WARN, FAIL, or NOT EVALUATED outcomes.",
+                "Verification method": "Apply the configured limits to measured controller evidence and inspect the resulting screening table.",
+                "Evidence / artifact": "Engineering acceptance screening + Controller Verification Record",
+                "Status": "VERIFIED",
+            },
+            {
+                "ID": "R9",
+                "Engineering requirement": "Preserve traceable engineering evidence for review and reproducibility.",
+                "Implementation": "The application consolidates configuration, measured results, screening outcomes, reproducibility information, and validation limitations.",
+                "Verification method": "Generate and inspect the downloadable engineering evidence records.",
+                "Evidence / artifact": "Controller Evaluation Report + Controller Verification Record + Operator Summary",
+                "Status": "VERIFIED",
             },
         ]
     )
 
-    st.dataframe(requirements, width="stretch", hide_index=True)
+    st.dataframe(
+        requirements,
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.caption(
+        "Traceability status refers to verification within the documented "
+        "CityLearn simulation and application scope. VERIFIED does not mean "
+        "certified, commissioned, or validated for physical-building deployment."
+    )
 
     st.markdown("### Failure and safety analysis")
 
@@ -2284,3 +2381,213 @@ Saved Learned Policies            Fixed Rule-Based Policy
         "text/plain",
     )
 
+
+
+# =====================================================================
+# TAB 8 — GUIDED ENGINEERING SCENARIO
+# =====================================================================
+
+with tabs[7]:
+    st.subheader("Guided Engineering Scenario")
+
+    st.write(
+        "This workflow demonstrates how a building energy manager, facilities "
+        "engineer, or controls engineer can use the application to evaluate a "
+        "candidate offline-RL controller before considering further deployment "
+        "activities. The scenario links controller execution, multi-KPI "
+        "assessment, comfort analysis, engineering acceptance screening, "
+        "failure mitigation, and verification evidence."
+    )
+
+    st.info(
+        "Scenario: assess candidate controllers for a three-building CityLearn "
+        "portfolio over the fixed 719-step evaluation horizon while considering "
+        "energy, operating cost, carbon emissions, peak demand, and thermal "
+        "comfort. The objective is engineering evaluation and decision support, "
+        "not automatic physical-building deployment."
+    )
+
+    st.markdown("### Engineering workflow")
+
+    scenario_steps = pd.DataFrame(
+        [
+            {
+                "Step": "1",
+                "Engineering activity": "Define the operational objective",
+                "Application evidence": "Operator Decision Support",
+                "Expected outcome": "A scenario-specific operational priority and acceptance criteria.",
+            },
+            {
+                "Step": "2",
+                "Engineering activity": "Select a candidate controller",
+                "Application evidence": "Live Controller",
+                "Expected outcome": "BC, IQL, or CQL and a controlled seed are selected.",
+            },
+            {
+                "Step": "3",
+                "Engineering activity": "Execute the saved controller",
+                "Application evidence": "Live Controller",
+                "Expected outcome": "A fresh 719-step CityLearn rollout is produced without online policy learning.",
+            },
+            {
+                "Step": "4",
+                "Engineering activity": "Compare operational performance",
+                "Application evidence": "Controller Comparison + Native CityLearn KPIs",
+                "Expected outcome": "Energy, cost, carbon, peak-demand, and native KPI evidence is reviewed.",
+            },
+            {
+                "Step": "5",
+                "Engineering activity": "Check building-level comfort",
+                "Application evidence": "Thermal Comfort",
+                "Expected outcome": "Local comfort failures that may be hidden by aggregate metrics are identified.",
+            },
+            {
+                "Step": "6",
+                "Engineering activity": "Investigate supervisory mitigation",
+                "Application evidence": "Comfort Guardrail",
+                "Expected outcome": "Normal and guarded IQL evidence is compared, including intervention records and resource trade-offs.",
+            },
+            {
+                "Step": "7",
+                "Engineering activity": "Screen against engineering requirements",
+                "Application evidence": "Operator Decision Support",
+                "Expected outcome": "PASS, WARN, FAIL, or NOT EVALUATED statuses are produced from operator-defined limits.",
+            },
+            {
+                "Step": "8",
+                "Engineering activity": "Preserve verification evidence",
+                "Application evidence": "Controller Verification Record + Controller Evaluation Report",
+                "Expected outcome": "Traceable evidence is generated for review and engineering documentation.",
+            },
+        ]
+    )
+
+    st.dataframe(
+        scenario_steps,
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.markdown("### Demonstration case — IQL Seed 1")
+
+    st.write(
+        "A concrete case study is available in the application using the saved "
+        "IQL Seed 1 controller. The case demonstrates why controller evaluation "
+        "must consider more than aggregate energy performance."
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
+        "Evaluation horizon",
+        "719 steps",
+    )
+    c2.metric(
+        "Buildings",
+        "3",
+    )
+    c3.metric(
+        "Offline transitions",
+        "21,570",
+    )
+    c4.metric(
+        "Guardrail interventions",
+        "207",
+    )
+
+    st.markdown("#### Case-study sequence")
+
+    st.write(
+        "**1. Candidate evaluation:** run or inspect IQL Seed 1 using the same "
+        "CityLearn evaluation configuration used for the other learned controllers."
+    )
+
+    st.write(
+        "**2. Multi-KPI review:** inspect electricity consumption, operating "
+        "cost, carbon emissions, peak demand, and native CityLearn KPIs rather "
+        "than relying only on cumulative RL reward."
+    )
+
+    st.write(
+        "**3. Failure identification:** building-level comfort evidence exposes "
+        "a severe Building 1 discomfort result even though aggregate efficiency "
+        "metrics are comparatively strong."
+    )
+
+    st.write(
+        "**4. Engineering response:** the simulation-validated supervisory "
+        "comfort guardrail replaces only the affected building's IQL cooling "
+        "action with BasicRBC cooling when the occupied overheating condition "
+        "is satisfied."
+    )
+
+    st.write(
+        "**5. Verification:** the guarded evaluation records each intervention "
+        "and quantifies the resulting comfort-versus-resource trade-off."
+    )
+
+    st.write(
+        "**6. Decision support:** operator-defined acceptance criteria and the "
+        "verification record make the failure and supporting evidence explicit "
+        "instead of presenting the controller as universally suitable."
+    )
+
+    if guarded is not None:
+        st.markdown("### Preserved guardrail evidence")
+
+        required_guard_cols = {
+            "mode",
+            "net_electricity_consumption",
+            "electricity_cost",
+            "carbon_emission",
+            "peak_net_electricity",
+        }
+
+        if required_guard_cols.issubset(guarded.columns):
+            scenario_guard = guarded.copy()
+
+            display_cols = [
+                "mode",
+                "net_electricity_consumption",
+                "electricity_cost",
+                "carbon_emission",
+                "peak_net_electricity",
+            ]
+
+            optional_cols = [
+                "building_1_overheating_discomfort",
+                "building_2_overheating_discomfort",
+                "building_3_overheating_discomfort",
+                "interventions",
+            ]
+
+            for col in optional_cols:
+                if col in scenario_guard.columns:
+                    display_cols.append(col)
+
+            st.dataframe(
+                scenario_guard[display_cols].round(3),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.caption(
+                "Guardrail summary evidence is available, but its stored schema "
+                "does not contain the expected scenario-display columns."
+            )
+
+    st.markdown("### What this scenario demonstrates")
+
+    st.success(
+        "The application supports an end-to-end engineering evaluation workflow: "
+        "define requirements → execute a saved controller → measure operational "
+        "and comfort outcomes → identify failure → inspect a supervisory "
+        "mitigation → apply acceptance screening → preserve verification evidence."
+    )
+
+    st.warning(
+        "Validation boundary: this workflow demonstrates simulation-based "
+        "engineering evaluation in CityLearn. It does not establish physical "
+        "building safety, certify a controller for deployment, or replace BMS "
+        "integration, commissioning, operator override, and field validation."
+    )
