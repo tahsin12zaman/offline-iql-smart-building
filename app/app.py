@@ -33,6 +33,8 @@ def read_csv(name):
 application = read_csv("citylearn_application_metrics.csv")
 comfort = read_csv("citylearn_comfort_summary.csv")
 native = read_csv("citylearn_native_district_kpi_summary.csv")
+guarded = read_csv("citylearn_guarded_v2_summary.csv")
+guard_events = read_csv("citylearn_guarded_v2_events.csv")
 
 
 # ---------------------------------------------------------------------
@@ -78,6 +80,7 @@ tabs = st.tabs(
         "Controller Comparison",
         "Thermal Comfort",
         "Native CityLearn KPIs",
+        "Comfort Guardrail",
         "Operator Decision Support",
     ]
 )
@@ -979,10 +982,108 @@ with tabs[4]:
 
 
 # =====================================================================
-# TAB 6 — DECISION SUPPORT
+# TAB 6 — SUPERVISORY COMFORT GUARDRAIL
 # =====================================================================
 
 with tabs[5]:
+    st.subheader("Supervisory Comfort Guardrail")
+
+    st.write(
+        "This experiment evaluates a simulation-validated supervisory fallback for "
+        "IQL Seed 1. At each control step, the latest completed CityLearn thermal "
+        "state is checked. If a building is occupied and its indoor temperature "
+        "exceeds the cooling setpoint plus the CityLearn comfort band, only that "
+        "building's cooling-device action is replaced by the BasicRBC cooling action."
+    )
+
+    st.code(
+        """IQL proposes 9 centralized actions
+        |
+        v
+Latest completed state: building.time_step - 1
+        |
+        v
+Occupied AND T > cooling setpoint + comfort band?
+        |
+   +----+----+
+   |         |
+  No        Yes
+   |         |
+IQL action   Replace affected building's cooling action
+             with BasicRBC cooling
+   |         |
+   +----+----+
+        |
+        v
+     CityLearn""",
+        language="text",
+    )
+
+    if guarded is None:
+        st.warning("results/citylearn_guarded_v2_summary.csv was not found.")
+    else:
+        gdf = guarded.copy()
+        if "mode" in gdf.columns and {"NORMAL_IQL", "GUARDED_IQL"}.issubset(set(gdf["mode"])):
+            normal_row = gdf[gdf["mode"] == "NORMAL_IQL"].iloc[0]
+            guarded_row = gdf[gdf["mode"] == "GUARDED_IQL"].iloc[0]
+
+            st.markdown("### IQL Seed 1 — normal vs guarded")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Net Electricity", f"{guarded_row['net_electricity_consumption']:,.2f}", delta=f"{((guarded_row['net_electricity_consumption']/normal_row['net_electricity_consumption'])-1)*100:+.2f}%", delta_color="inverse")
+            c2.metric("Electricity Cost", f"{guarded_row['electricity_cost']:,.2f}", delta=f"{((guarded_row['electricity_cost']/normal_row['electricity_cost'])-1)*100:+.2f}%", delta_color="inverse")
+            c3.metric("Carbon Emissions", f"{guarded_row['carbon_emission']:,.2f}", delta=f"{((guarded_row['carbon_emission']/normal_row['carbon_emission'])-1)*100:+.2f}%", delta_color="inverse")
+            c4.metric("Peak Electricity", f"{guarded_row['peak_net_electricity']:,.3f}", delta=f"{((guarded_row['peak_net_electricity']/normal_row['peak_net_electricity'])-1)*100:+.2f}%", delta_color="inverse")
+
+            comfort_rows = []
+            for b in (1, 2, 3):
+                key = f"building_{b}_overheating_discomfort"
+                comfort_rows += [
+                    {"Building": f"Building {b}", "Mode": "Normal IQL", "Overheating discomfort (%)": float(normal_row[key]) * 100.0},
+                    {"Building": f"Building {b}", "Mode": "Guarded IQL", "Overheating discomfort (%)": float(guarded_row[key]) * 100.0},
+                ]
+            guard_comfort = pd.DataFrame(comfort_rows)
+            fig = px.bar(guard_comfort, x="Building", y="Overheating discomfort (%)", color="Mode", barmode="group", title="Occupied Overheating Discomfort — IQL Seed 1")
+            st.plotly_chart(fig, width="stretch")
+            st.dataframe(guard_comfort.round(2), width="stretch", hide_index=True)
+
+            worst_before = float(normal_row["worst_building_overheating_discomfort"]) * 100.0
+            worst_after = float(guarded_row["worst_building_overheating_discomfort"]) * 100.0
+            activations = int(guarded_row.get("guardrail_activations", 0))
+            st.success(
+                f"Worst-building overheating discomfort decreased from {worst_before:.2f}% "
+                f"to {worst_after:.2f}% in this simulation experiment. The guardrail "
+                f"made {activations} cooling-action interventions."
+            )
+            st.warning(
+                "The comfort improvement has a measurable resource penalty: net electricity "
+                "increased by 24.79%, electricity cost by 28.23%, carbon emissions by 22.74%, "
+                "and peak building electricity by 16.90% for this IQL Seed 1 experiment."
+            )
+
+            if guard_events is not None and "building" in guard_events.columns:
+                st.markdown("### Intervention evidence")
+                counts = guard_events.groupby("building").size().reset_index(name="Interventions")
+                counts["Building"] = "Building " + counts["building"].astype(str)
+                st.dataframe(counts[["Building", "Interventions"]], width="stretch", hide_index=True)
+                with st.expander("Show guardrail intervention records"):
+                    st.dataframe(guard_events, width="stretch", hide_index=True)
+
+            st.info(
+                "Validation boundary: this is a simulation-validated supervisory comfort "
+                "guardrail in CityLearn, not a physically validated building safety system. "
+                "Physical deployment would require sensor/BMS integration, actuator and "
+                "communication validation, explicit fail-safe behavior, operator override, "
+                "and staged commissioning."
+            )
+        else:
+            st.dataframe(gdf, width="stretch", hide_index=True)
+
+
+# =====================================================================
+# TAB 7 — DECISION SUPPORT
+# =====================================================================
+
+with tabs[6]:
     st.subheader("Operator Decision Support")
 
     st.write(
@@ -1602,6 +1703,8 @@ Streamlit controller evaluation + decision support""",
         """results/citylearn_application_metrics.csv
 results/citylearn_comfort_summary.csv
 results/citylearn_native_district_kpi_summary.csv
+results/citylearn_guarded_v2_summary.csv
+results/citylearn_guarded_v2_events.csv
 results/citylearn_<algorithm>_seed_<n>.d3""",
         language="text",
     )
@@ -1628,6 +1731,8 @@ results/citylearn_<algorithm>_seed_<n>.d3""",
         "  results/citylearn_application_metrics.csv",
         "  results/citylearn_comfort_summary.csv",
         "  results/citylearn_native_district_kpi_summary.csv",
+        "  results/citylearn_guarded_v2_summary.csv",
+        "  results/citylearn_guarded_v2_events.csv",
         "The repository dependency specification controls package versions.",
     ]
 
@@ -1670,6 +1775,12 @@ results/citylearn_<algorithm>_seed_<n>.d3""",
                 "Engineering requirement": "Provide a practically demonstrable user-facing prototype.",
                 "Implementation": "Interactive Streamlit application with controller execution and decision support.",
                 "Verification evidence": "Local/public application workflow and downloadable evaluation outputs.",
+            },
+            {
+                "ID": "R7",
+                "Engineering requirement": "Mitigate detected occupied overheating while preserving traceable supervisory behavior.",
+                "Implementation": "Simulation-validated comfort guardrail replaces only an affected building's IQL cooling-device action with BasicRBC cooling.",
+                "Verification evidence": "IQL Seed 1 normal-vs-guarded evaluation, 207 intervention records, and quantified comfort/resource trade-offs.",
             },
         ]
     )
