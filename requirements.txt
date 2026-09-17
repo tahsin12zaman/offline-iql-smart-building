@@ -7,3 +7,5 @@ citylearn==2.5.0
 gym==0.26.2
 gymnasium==1.0.0
 h5py==3.16.0
+streamlit==1.64.0
+plotly==7.1.0
