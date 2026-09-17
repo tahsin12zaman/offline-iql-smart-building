@@ -3,9 +3,12 @@ pandas==2.3.3
 matplotlib==3.10.9
 torch==2.13.0
 d3rlpy==2.8.1
-citylearn==2.5.0
 gym==0.26.2
 gymnasium==1.0.0
 h5py==3.16.0
 streamlit==1.64.0
 plotly==7.1.0
+platformdirs==4.11.4
+PyYAML==6.0.3
+simplejson==4.1.1
+scikit-learn==1.2.2
