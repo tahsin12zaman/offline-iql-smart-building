@@ -88,39 +88,156 @@ def load_iql_model(data_path, model_path):
 
 def calculate_building_comfort(building):
     indoor = series(building, "indoor_dry_bulb_temperature")
-    setpoint = series(building, "indoor_dry_bulb_temperature_cooling_set_point")
+    setpoint = series(
+        building, "indoor_dry_bulb_temperature_cooling_set_point"
+    )
     comfort_band = series(building, "comfort_band")
     occupants = series(building, "occupant_count")
-    n = min(len(indoor), len(setpoint), len(comfort_band), len(occupants))
+
+    n = min(
+        len(indoor),
+        len(setpoint),
+        len(comfort_band),
+        len(occupants),
+    )
+
     if n == 0:
-        return {"occupied_count": 0, "violation_count": 0, "discomfort": float("nan")}
-    indoor, setpoint, comfort_band, occupants = indoor[:n], setpoint[:n], comfort_band[:n], occupants[:n]
+        return {
+            "occupied_count": 0,
+            "violation_count": 0,
+            "discomfort": float("nan"),
+            "overcooling_violation_count": 0,
+            "overcooling_discomfort": float("nan"),
+            "within_band_cool_count": 0,
+            "within_band_cool_rate": float("nan"),
+            "combined_violation_count": 0,
+            "combined_discomfort": float("nan"),
+        }
+
+    indoor = indoor[:n]
+    setpoint = setpoint[:n]
+    comfort_band = comfort_band[:n]
+    occupants = occupants[:n]
+
     occupied = occupants > 0.0
-    violations = occupied & (indoor > setpoint + comfort_band)
+    lower = setpoint - comfort_band
+    upper = setpoint + comfort_band
+
+    # Occupied and above the upper comfort boundary.
+    overheating = occupied & (indoor > upper)
+
+    # Occupied and below the lower comfort boundary.
+    overcooling = occupied & (indoor < lower)
+
+    # Occupied, below the setpoint, but still inside the comfort band.
+    within_band_cool = (
+        occupied
+        & (indoor < setpoint)
+        & (indoor >= lower)
+    )
+
+    # Either too hot or too cold outside the comfort band.
+    combined = overheating | overcooling
+
     occupied_count = int(np.sum(occupied))
-    violation_count = int(np.sum(violations))
-    discomfort = violation_count / occupied_count if occupied_count else float("nan")
-    return {"occupied_count": occupied_count, "violation_count": violation_count, "discomfort": discomfort}
+
+    def rate(mask):
+        return (
+            float(np.sum(mask) / occupied_count)
+            if occupied_count > 0
+            else float("nan")
+        )
+
+    return {
+        # Keep these original keys so existing evaluation code still works.
+        "occupied_count": occupied_count,
+        "violation_count": int(np.sum(overheating)),
+        "discomfort": rate(overheating),
+
+        "overcooling_violation_count": int(np.sum(overcooling)),
+        "overcooling_discomfort": rate(overcooling),
+
+        "within_band_cool_count": int(np.sum(within_band_cool)),
+        "within_band_cool_rate": rate(within_band_cool),
+
+        "combined_violation_count": int(np.sum(combined)),
+        "combined_discomfort": rate(combined),
+    }
 
 
 def collect_metrics(env, total_reward, steps):
     metrics = {
         "reward": float(total_reward),
         "steps": int(steps),
-        "net_electricity_consumption": sum_building_metric(env, "net_electricity_consumption"),
-        "electricity_cost": sum_building_metric(env, "net_electricity_consumption_cost"),
-        "carbon_emission": sum_building_metric(env, "net_electricity_consumption_emission"),
-        "peak_net_electricity": max_building_metric(env, "net_electricity_consumption"),
+        "net_electricity_consumption": sum_building_metric(
+            env, "net_electricity_consumption"
+        ),
+        "electricity_cost": sum_building_metric(
+            env, "net_electricity_consumption_cost"
+        ),
+        "carbon_emission": sum_building_metric(
+            env, "net_electricity_consumption_emission"
+        ),
+        "peak_net_electricity": max_building_metric(
+            env, "net_electricity_consumption"
+        ),
     }
-    ds = []
-    for i, b in enumerate(env.buildings, 1):
-        c = calculate_building_comfort(b)
+
+    overheating_rates = []
+    overcooling_rates = []
+    combined_rates = []
+
+    for i, building in enumerate(env.buildings, 1):
+        c = calculate_building_comfort(building)
+
         metrics[f"building_{i}_occupied_count"] = c["occupied_count"]
+
         metrics[f"building_{i}_violation_count"] = c["violation_count"]
         metrics[f"building_{i}_overheating_discomfort"] = c["discomfort"]
+
+        metrics[f"building_{i}_overcooling_violation_count"] = (
+            c["overcooling_violation_count"]
+        )
+        metrics[f"building_{i}_overcooling_discomfort"] = (
+            c["overcooling_discomfort"]
+        )
+
+        metrics[f"building_{i}_within_band_cool_count"] = (
+            c["within_band_cool_count"]
+        )
+        metrics[f"building_{i}_within_band_cool_rate"] = (
+            c["within_band_cool_rate"]
+        )
+
+        metrics[f"building_{i}_combined_violation_count"] = (
+            c["combined_violation_count"]
+        )
+        metrics[f"building_{i}_combined_discomfort"] = (
+            c["combined_discomfort"]
+        )
+
         if np.isfinite(c["discomfort"]):
-            ds.append(c["discomfort"])
-    metrics["worst_building_overheating_discomfort"] = float(max(ds)) if ds else float("nan")
+            overheating_rates.append(c["discomfort"])
+
+        if np.isfinite(c["overcooling_discomfort"]):
+            overcooling_rates.append(c["overcooling_discomfort"])
+
+        if np.isfinite(c["combined_discomfort"]):
+            combined_rates.append(c["combined_discomfort"])
+
+    metrics["worst_building_overheating_discomfort"] = (
+        float(max(overheating_rates))
+        if overheating_rates else float("nan")
+    )
+    metrics["worst_building_overcooling_discomfort"] = (
+        float(max(overcooling_rates))
+        if overcooling_rates else float("nan")
+    )
+    metrics["worst_building_combined_discomfort"] = (
+        float(max(combined_rates))
+        if combined_rates else float("nan")
+    )
+
     return metrics
 
 

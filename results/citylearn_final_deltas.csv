@@ -1,0 +1,3 @@
+weather,guarded_vs_iql_combined_discomfort_reduction_pct,guarded_vs_rbc_combined_discomfort_reduction_pct,guarded_vs_iql_energy_change_pct,guarded_vs_rbc_energy_change_pct,guarded_vs_iql_cost_change_pct,guarded_vs_rbc_cost_change_pct,guarded_vs_iql_carbon_change_pct,guarded_vs_rbc_carbon_change_pct,guardrail_activations
+Original,68.00573888091822,67.86743515850145,24.78647648408509,-61.68884134498644,28.228916943173363,-61.96428614268694,22.741033048462775,-59.84444891319354,207
++3C,60.22889842632331,59.8845598845599,39.70397734186733,-56.68799134158223,43.17456509773997,-57.07119140580768,36.2312337085529,-55.050836826434896,371
